@@ -59,7 +59,7 @@ async def get_history(conversation_id: int):
 
         return {"messages": [
 #             {"role": "user" if msg.type == "human" else character_name, "content": msg.content}
-            {"role": "user" if msg.type == "human" else "스폰지밥", "content": msg.content}
+            {"role": "user" if msg.type == "human" else "ai", "content": msg.content}
             for msg in history.messages
         ]}
     except Exception as e:
