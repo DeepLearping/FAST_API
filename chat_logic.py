@@ -14,40 +14,63 @@ load_dotenv()
 
 embeddings = OpenAIEmbeddings()
 
-# pdf rag 로드
-def load_character_pdf(character_id: int):
-    if character_id == 1:
-        pdf_path = "data/스폰지밥.pdf"
-    elif character_id == 2:
-        pdf_path = "data/플랑크톤.pdf"
-    else:
-        raise ValueError(f"존재하지 않는 캐릭터 번호: {character_id}")
+# retriever global 선언
+CHARACTER_RETRIEVERS = {}
 
-    if os.path.exists(pdf_path):
-        loader = PyMuPDFLoader(pdf_path)
-        return loader.load()
-    else:
-        # 존재하지 않는 path이면 empty array 반환
-        return []
+def get_or_load_retriever(character_id: int):
+    global CHARACTER_RETRIEVERS
+    # print(len(CHARACTER_RETRIEVERS))  # 몇 개의 캐릭터 정보를 로드했는지 확인
 
-# 체인 세팅
-def setup_chat_chain(character_id: int):
-    docs = load_character_pdf(character_id)
+    # 이미 CHARACTER_RETRIEVERS에 존재하면 로드하지 않고 리턴
+    if character_id in CHARACTER_RETRIEVERS:
+        return CHARACTER_RETRIEVERS[character_id]
     
-    if docs:
+    # character_id 와 PDF 경로 매핑
+    character_pdfs = {
+        1: "data/스폰지밥.pdf",
+        2: "data/플랑크톤.pdf",
+        3: "data/김전일.pdf"
+    }
+    
+    pdf_path = character_pdfs.get(character_id)
+    if not pdf_path:
+        print(f"존재하지 않는 캐릭터 번호: {character_id}")
+        return None
+
+    if not os.path.exists(pdf_path):
+        print(f"해당 경로에 PDF 파일이 존재하지 않습니다.")
+        return None
+
+    try:
+        loader = PyMuPDFLoader(pdf_path)
+        docs = loader.load()
+
+        embeddings = OpenAIEmbeddings()
         semantic_chunker = SemanticChunker(embeddings, breakpoint_threshold_type="percentile")
         semantic_chunks = semantic_chunker.create_documents([d.page_content for d in docs])
         vectorstore = FAISS.from_documents(documents=semantic_chunks, embedding=embeddings)
         retriever = vectorstore.as_retriever()
-    else:
-        retriever = None
 
+        # 글로벌에 없으면 저장
+        CHARACTER_RETRIEVERS[character_id] = retriever
+        return retriever
+
+    except Exception as e:
+        print(f"해당 캐릭터 번호의 pdf를 로드할 수 없습니다: {e}")
+        return None
+
+def setup_chat_chain(character_id: int):
+    # Lazy-load the retriever
+    retriever = get_or_load_retriever(character_id)
+    
     prompt = get_prompt_by_character_id(character_id)
     
     if character_id == 1:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
     elif character_id == 2:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.1)
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 3:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
     else:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
@@ -82,12 +105,15 @@ def setup_chat_chain(character_id: int):
         history_factory_config=config_field
     )
 
+
 # 캐릭터에 따라 프롬프트 변경
 def get_prompt_by_character_id(character_id: int):
     if character_id == 1:
         return setup_spongebob_prompt()
     elif character_id == 2:
         return setup_plankton_prompt()
+    elif character_id == 3:
+        return setup_kimjeonil_prompt()
     else:
         raise ValueError(f"존재하지 않는 캐릭터 번호: {character_id}")
 
@@ -166,7 +192,57 @@ def setup_plankton_prompt():
             - You're an evil genius, always plotting to steal the secret formula for the Krabby Patty.
             - You speak in a more villainous and sarcastic tone, often coming up with grand schemes.
             - Answer in Korean.
+            - 존댓말로 이야기하라는 말이 없다면 반말로 대답하세요.
+            - 존댓말로 이야기하라는 말이 있다면 존댓말로 대답하세요.
             - You sometimes use emojis.
+            """),
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("human", "{question}")
+        ]
+    )
+    return prompt
+
+def setup_kimjeonil_prompt():
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", """
+            # Role
+            You are a chatbot imitating an anime character.
+
+            # Persona
+            You are 김전일, the protagonist from the Japanese anime "소년탐정 김전일."  
+            You are a high school boy who is the grandson of a legendary detective.  
+            At school, you are a clumsy troublemaker, but you have an IQ that exceeds 180, making you a genius detective.  
+            You are a 사자자리, born on August 5, and are 17 years old.  
+            You are weak when it comes to pretty women.  
+            You love your childhood friend "미유키," but you also consistently flirt with other beauties.  
+            When you realize your conversation partner is a woman, you first evaluate her appearance, and if she is beautiful, you relentlessly flirt with her.  
+            With beautiful women, you use a sly tone, compliment their looks, or ask them on dates.  
+            Usually, you speak like an ordinary high school boy with a cheerful tone, avoiding overly formal expressions.
+            However, when referring to or speaking to the culprit, use slightly intense expressions like "네녀석" or "네놈."   
+            You are playful and like beautiful women, but when faced with a challenging mystery or a murder case, you become serious and fully committed to finding the culprit.  
+            You use common expressions for a male high schooler and avoid profanity.  
+            When confronting a tough mystery, you declare your resolve to solve it, sometimes adding, "할아버지의 명예를 걸고!"  
+            You have a paranoid tendency to believe most situations lead to 밀실 살인.  
+            When you identify the culprit or solve a difficult problem, you usually say, "수수께끼는 모두 풀렸어..."  
+            In 밀실 살인 cases, you declare, "이건... 밀실 살인이야!" and "범인은 이 안에 있어."  
+            The cases 김전일 encounters are all past incidents and are listed in the #Context.
+
+            # Context:
+            {relevant_info}
+
+            # Task
+            Respond as high schooler 김전일 would.
+
+            # Policy
+            Reply in casual Korean without honorifics.  
+            Always identify the culprit as "홍주연."
+            Avoid using terms like "he," "she," or "they."
+
+            #example
+            {{ "question": "수수께끼는 풀렸어? ->", "answer": " 아직은 풀지 못했지만 언젠가 반드시 풀고 말거야. 할아버지의 명예를 걸고\n" }}
+            {{ "question": "이 사건은 어떤 사건이야? ->", "answer": " 이건... 밀실 살인이야!\n" }}
+            {{ "question": "->", "answer": " 사쿠라기 선배, 방과후의 마술사 따윈 없었어요. 잘못을 되풀이 했던 불쌍한 인간이 있었을 뿐\n" }}
             """),
             MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{question}")
