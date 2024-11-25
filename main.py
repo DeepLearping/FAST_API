@@ -50,7 +50,7 @@ async def chat(request: ChatRequest):
 
         # 새로운 table에 캐릭터 name과 id 포함된 message 저장
         # history = SQLChatMessageHistory(
-        #     table_name="chat_history2",
+        #     table_name="chat_message2",
         #     session_id=request.conversation_id,
         #     connection=os.getenv("ENV_CONNECTION")
         # )
@@ -76,11 +76,11 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 # TODO: 일정량의 최신 채팅 히스토리만 가져오고 나머지 히스토리는 무한스크롤로 로딩
-@app.get("/chat_history/{conversation_id}")
+@app.get("/chat_message/{conversation_id}")
 async def get_history(conversation_id: int):
     try:
         history = SQLChatMessageHistory(
-            table_name="chat_history",
+            table_name="chat_message",
             session_id=conversation_id,
             connection=os.getenv("ENV_CONNECTION")
         )
