@@ -3,6 +3,8 @@ from langchain_community.chat_message_histories import SQLChatMessageHistory
 from fastapi import FastAPI, HTTPException
 from chat_logic import setup_chat_chain
 from models import ChatRequest, ChatResponse
+from langchain_core.messages.ai import AIMessage
+from langchain_core.messages import HumanMessage
 import os
 from sqlalchemy import create_engine, text
 
@@ -26,23 +28,49 @@ async def chat(request: ChatRequest):
     try:
         # import time
         # start_time = time.time()
-
-        # chain을 캐릭터에 따라 set
-        chat_chain = setup_chat_chain(request.character_id)
-
+        chat_chain = setup_chat_chain(request.character_id) # chain을 캐릭터에 따라 set
         # print("chat chain time", time.time() - start_time)
-        
+
         config = {
             "configurable": {
                 "user_id": request.user_id,
                 "conversation_id": request.conversation_id
             }
         }
- 
+
         response = chat_chain.invoke({"question": request.question}, config)
         
-        answer = ChatResponse(answer=response)
-        return answer
+        # 토큰 단위 스트리밍
+        # response = ""
+        # for token in chat_chain.stream({"question": request.question}, config):
+        #     # 스트림에서 받은 데이터의 내용을 출력
+        #     # 줄바꿈 없이 이어서 출력, 버퍼를 즉시 비움
+        #     response = response + token
+        #     print(token, end="", flush=True)
+
+        # 새로운 table에 캐릭터 name과 id 포함된 message 저장
+        # history = SQLChatMessageHistory(
+        #     table_name="chat_history2",
+        #     session_id=request.conversation_id,
+        #     connection=os.getenv("ENV_CONNECTION")
+        # )
+        
+        # history.add_user_message(
+        #     HumanMessage(
+        #         content=request.question,
+        #         id=request.user_id
+        #     )
+        # )
+        
+        # history.add_ai_message(
+        #     AIMessage(
+        #         content=response,
+        #         name=request.character_name,
+        #         id=request.character_id
+        #     )
+        # )
+
+        return ChatResponse(answer=response)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -58,7 +86,6 @@ async def get_history(conversation_id: int):
         )
 
         return {"messages": [
-#             {"role": "user" if msg.type == "human" else character_name, "content": msg.content}
             {"role": "user" if msg.type == "human" else "ai", "content": msg.content}
             for msg in history.messages
         ]}
