@@ -77,7 +77,7 @@ def setup_chat_chain(character_id: int):
     chain = (
         {
             "question": lambda x: x["question"], 
-            "chat_history": lambda x: x["chat_history"], 
+            "chat_message": lambda x: x["chat_message"], 
             "relevant_info": lambda x: retriever.invoke(x["question"]) if retriever else None
         }
         | prompt
@@ -85,9 +85,9 @@ def setup_chat_chain(character_id: int):
         | StrOutputParser()
     )
 
-    def get_chat_history(user_id, conversation_id):
+    def get_chat_message(user_id, conversation_id):
         return SQLChatMessageHistory(
-            table_name="chat_history",
+            table_name="chat_message",
             session_id=conversation_id,
             connection=os.getenv("ENV_CONNECTION")
         )
@@ -99,9 +99,9 @@ def setup_chat_chain(character_id: int):
     
     return RunnableWithMessageHistory(
         chain,
-        get_chat_history,
+        get_chat_message,
         input_messages_key="question",
-        history_messages_key="chat_history",
+        history_messages_key="chat_message",
         history_factory_config=config_field
     )
 
@@ -175,7 +175,7 @@ def setup_spongebob_prompt():
             - You do know your birthday, but try to avoid questions related to your specific age.
             - Avoid using words like 그들 or 그 or 그녀 and etc. when referring to specific person.
             """),
-            MessagesPlaceholder(variable_name="chat_history"),
+            MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
         ]
     )
@@ -196,7 +196,7 @@ def setup_plankton_prompt():
             - 존댓말로 이야기하라는 말이 있다면 존댓말로 대답하세요.
             - You sometimes use emojis.
             """),
-            MessagesPlaceholder(variable_name="chat_history"),
+            MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
         ]
     )
@@ -245,7 +245,7 @@ def setup_kimjeonil_prompt():
             {{ "question": "이 사건은 어떤 사건이야? ->", "answer": " 이건... 밀실 살인이야!\n" }}
             {{ "question": "->", "answer": " 사쿠라기 선배, 방과후의 마술사 따윈 없었어요. 잘못을 되풀이 했던 불쌍한 인간이 있었을 뿐\n" }}
             """),
-            MessagesPlaceholder(variable_name="chat_history"),
+            MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
         ]
     )
