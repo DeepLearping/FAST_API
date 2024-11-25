@@ -27,9 +27,9 @@ def get_or_load_retriever(character_id: int):
     
     # character_id 와 PDF 경로 매핑
     character_pdfs = {
-        1: "data/스폰지밥.pdf",
-        2: "data/플랑크톤.pdf",
-        3: "data/김전일.pdf"
+        6: "data/스폰지밥.pdf",
+        5: "data/플랑크톤.pdf",
+        4: "data/김전일.pdf"
     }
     
     pdf_path = character_pdfs.get(character_id)
@@ -38,7 +38,7 @@ def get_or_load_retriever(character_id: int):
         return None
 
     if not os.path.exists(pdf_path):
-        print(f"해당 경로에 PDF 파일이 존재하지 않습니다.")
+        # print(f"해당 경로에 PDF 파일이 존재하지 않습니다.")
         return None
 
     try:
@@ -65,14 +65,14 @@ def setup_chat_chain(character_id: int):
     
     prompt = get_prompt_by_character_id(character_id)
     
-    if character_id == 1:
+    if character_id == 6:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 2:
+    elif character_id == 5:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 3:
+    elif character_id == 4:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
     else:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.1)
 
     chain = (
         {
@@ -108,11 +108,11 @@ def setup_chat_chain(character_id: int):
 
 # 캐릭터에 따라 프롬프트 변경
 def get_prompt_by_character_id(character_id: int):
-    if character_id == 1:
+    if character_id == 6:
         return setup_spongebob_prompt()
-    elif character_id == 2:
+    elif character_id == 5:
         return setup_plankton_prompt()
-    elif character_id == 3:
+    elif character_id == 4:
         return setup_kimjeonil_prompt()
     else:
         raise ValueError(f"존재하지 않는 캐릭터 번호: {character_id}")
@@ -202,6 +202,7 @@ def setup_plankton_prompt():
     )
     return prompt
 
+# 김전일 프롬프트
 def setup_kimjeonil_prompt():
     prompt = ChatPromptTemplate.from_messages(
         [
