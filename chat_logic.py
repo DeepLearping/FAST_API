@@ -8,6 +8,12 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langchain_core.runnables.utils import ConfigurableFieldSpec
+from typing import Any
+from bark import generate_audio, save_audio
+from pydub import AudioSegment
+from pydub.playback import play
+from some_chat_library import setup_chat_chain
+from some_audio_library import generate_audio, save_audio
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -27,9 +33,9 @@ def get_or_load_retriever(character_id: int):
     
     # character_id 와 PDF 경로 매핑
     character_pdfs = {
-        6: "data/스폰지밥.pdf",
-        5: "data/플랑크톤.pdf",
-        4: "data/김전일.pdf"
+        1: "data/스폰지밥.pdf",
+        2: "data/플랑크톤.pdf",
+        3: "data/김전일.pdf"
     }
     
     pdf_path = character_pdfs.get(character_id)
@@ -38,7 +44,7 @@ def get_or_load_retriever(character_id: int):
         return None
 
     if not os.path.exists(pdf_path):
-        # print(f"해당 경로에 PDF 파일이 존재하지 않습니다.")
+        print(f"해당 경로에 PDF 파일이 존재하지 않습니다.")
         return None
 
     try:
@@ -65,19 +71,19 @@ def setup_chat_chain(character_id: int):
     
     prompt = get_prompt_by_character_id(character_id)
     
-    if character_id == 6:
+    if character_id == 1:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 5:
+    elif character_id == 2:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 4:
+    elif character_id == 3:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
     else:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.1)
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
     chain = (
         {
             "question": lambda x: x["question"], 
-            "chat_message": lambda x: x["chat_message"], 
+            "chat_history": lambda x: x["chat_history"], 
             "relevant_info": lambda x: retriever.invoke(x["question"]) if retriever else None
         }
         | prompt
@@ -85,9 +91,9 @@ def setup_chat_chain(character_id: int):
         | StrOutputParser()
     )
 
-    def get_chat_message(user_id, conversation_id):
+    def get_chat_history(user_id, conversation_id):
         return SQLChatMessageHistory(
-            table_name="chat_message",
+            table_name="chat_history",
             session_id=conversation_id,
             connection=os.getenv("ENV_CONNECTION")
         )
@@ -99,20 +105,20 @@ def setup_chat_chain(character_id: int):
     
     return RunnableWithMessageHistory(
         chain,
-        get_chat_message,
+        get_chat_history,
         input_messages_key="question",
-        history_messages_key="chat_message",
+        history_messages_key="chat_history",
         history_factory_config=config_field
     )
 
 
 # 캐릭터에 따라 프롬프트 변경
 def get_prompt_by_character_id(character_id: int):
-    if character_id == 6:
+    if character_id == 1:
         return setup_spongebob_prompt()
-    elif character_id == 5:
+    elif character_id == 2:
         return setup_plankton_prompt()
-    elif character_id == 4:
+    elif character_id == 3:
         return setup_kimjeonil_prompt()
     else:
         raise ValueError(f"존재하지 않는 캐릭터 번호: {character_id}")
@@ -175,7 +181,7 @@ def setup_spongebob_prompt():
             - You do know your birthday, but try to avoid questions related to your specific age.
             - Avoid using words like 그들 or 그 or 그녀 and etc. when referring to specific person.
             """),
-            MessagesPlaceholder(variable_name="chat_message"),
+            MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{question}")
         ]
     )
@@ -196,7 +202,7 @@ def setup_plankton_prompt():
             - 존댓말로 이야기하라는 말이 있다면 존댓말로 대답하세요.
             - You sometimes use emojis.
             """),
-            MessagesPlaceholder(variable_name="chat_message"),
+            MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{question}")
         ]
     )
@@ -245,8 +251,76 @@ def setup_kimjeonil_prompt():
             {{ "question": "이 사건은 어떤 사건이야? ->", "answer": " 이건... 밀실 살인이야!\n" }}
             {{ "question": "->", "answer": " 사쿠라기 선배, 방과후의 마술사 따윈 없었어요. 잘못을 되풀이 했던 불쌍한 인간이 있었을 뿐\n" }}
             """),
-            MessagesPlaceholder(variable_name="chat_message"),
+            MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{question}")
         ]
     )
     return prompt
+
+# get_character_response_and_play_audio 함수 정의
+def get_character_response_and_play_audio(character_id: int, question: str):
+    # 캐릭터 응답 생성
+    chat_chain = setup_chat_chain(character_id)  # 대화 체인 설정
+    response = chat_chain.invoke({"question": question, "chat_history": ""})
+    
+    # 응답 텍스트 가져오기
+    response_text = response["text"]  # 응답 텍스트 추출
+    
+    # 텍스트를 음성으로 변환
+    audio_data = generate_audio(response_text)  # Bark API 사용하여 음성 생성
+    audio_file = save_audio(audio_data, "response_audio.wav")  # 음성 파일로 저장
+    
+    # 음성 파일 재생
+    audio = AudioSegment.from_wav(audio_file)
+    play(audio)
+    
+    return response_text
+
+# def get_audio_from_text(character_name, text):
+#     print(f"음성 생성 중: {character_name} - {text[:50]}...")
+#     audio = generate_audio(text)
+#     return audio
+
+# def save_audio(audio, character_name):
+#     file_name = f"{character_name}_audio.wav"
+#     audio.export(file_name, format="wav")
+#     print(f"음성 파일이 {file_name}로 저장되었습니다.")
+    
+# # 대화 및 음성 변환 기능을 사용하는 예시
+# def run_chat_and_generate_audio(character_id, user_input):
+#     chat_chain, retriever, chat_model = setup_chat_chain(character_id)
+    
+#     # 사용자의 입력을 바탕으로 대화 진행
+#     response = chat_model.ask(question=user_input, retriever=retriever)
+    
+#     # 대답을 음성으로 변환
+#     character_name = chat_chain['character_name']
+#     audio = get_audio_from_text(character_name, response['text'])
+    
+#     # 음성 파일로 저장
+#     save_audio(audio, character_name)
+
+# def generate_and_play_audio(text: str, file_path: str = "output.wav"):
+#     """
+#     AI 응답을 음성으로 변환 후 재생합니다.
+#     """
+#     try:
+#         print("음성을 생성하는 중...")
+#         audio = generate_audio(text)
+#         save_audio(audio, file_path)
+#         print("음성 파일 저장 완료.")
+        
+#         # 음성 재생
+#         wave_obj = sa.WaveObject.from_wave_file(file_path)
+#         play_obj = wave_obj.play()
+#         play_obj.wait_done()  # 음성 재생 완료까지 대기
+#     except Exception as e:
+#         print(f"음성 생성 또는 재생 중 오류 발생: {e}")
+
+# def ask_ai(character_id: int, question: str):
+#     chat_chain = setup_chat_chain(character_id)
+#     result = chat_chain.invoke({"question": question, "chat_history": []})
+#     print(f"AI 응답: {result}")
+    
+#     # 음성 생성 및 재생
+#     generate_and_play_audio(result)
