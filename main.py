@@ -7,13 +7,7 @@ from fastapi import FastAPI, HTTPException, File, UploadFile, Form
 from chat_logic import setup_chat_chain
 from models import ChatRequest, ChatResponse
 import os
-from sqlalchemy import create_engine, text
-import speech_recognition as sr
-import pyttsx3
-from io import BytesIO
-from pydub import AudioSegment
-from pydub.playback import play
-import json
+from sqlalchemy import create_engine
 
 app = FastAPI()
 
@@ -76,9 +70,6 @@ async def chat(request: ChatRequest):
         response = chat_chain.invoke({"question": request.question}, config)
         
         answer = ChatResponse(answer=response)
-
-        # 음성으로 답변하기(이득규)
-        # play_ai_voice(response)
 
         return ChatResponse(answer=response, character_id=request.character_id)
 
