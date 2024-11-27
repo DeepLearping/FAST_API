@@ -8,6 +8,8 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langchain_core.runnables.utils import ConfigurableFieldSpec
+from langchain_redis import RedisChatMessageHistory
+from langchain_community.document_loaders import WebBaseLoader
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -31,23 +33,37 @@ def get_or_load_retriever(character_id: int):
         5: "data/플랑크톤.pdf",
         4: "data/김전일.pdf"
     }
-    
-    pdf_path = character_pdfs.get(character_id)
-    if not pdf_path:
-        print(f"존재하지 않는 캐릭터 번호: {character_id}")
-        return None
-
-    if not os.path.exists(pdf_path):
-        # print(f"해당 경로에 PDF 파일이 존재하지 않습니다.")
-        return None
+    character_webpages = {
+        6: "https://namu.wiki/w/%EB%84%A4%EB%AA%A8%EB%B0%94%EC%A7%80%20%EC%8A%A4%ED%8F%B0%EC%A7%80%EB%B0%A5(%EB%84%A4%EB%AA%A8%EB%B0%94%EC%A7%80%20%EC%8A%A4%ED%8F%B0%EC%A7%80%EB%B0%A5)/%EC%9E%91%EC%A4%91%20%ED%96%89%EC%A0%81"
+    }
 
     try:
-        loader = PyMuPDFLoader(pdf_path)
-        docs = loader.load()
+        all_docs = []
+
+        # web
+        if character_id in character_webpages:
+            web_path = character_webpages[character_id]
+            web_loader = WebBaseLoader(web_path)
+            web_docs = web_loader.load()
+            all_docs.extend(web_docs)
+
+        # pdf
+        if character_id in character_pdfs:
+            pdf_path = character_pdfs[character_id]
+            if os.path.exists(pdf_path):
+                pdf_loader = PyMuPDFLoader(pdf_path)
+                pdf_docs = pdf_loader.load()
+                all_docs.extend(pdf_docs)
+            else:
+                print(f"PDF파일이 해당 경로에 존재하지 않습니다: {pdf_path}")
+
+        if not all_docs:
+            print(f"캐릭터 아이디 {character_id}의 문서를 찾을 수 없습니다.")
+            return None
 
         embeddings = OpenAIEmbeddings()
         semantic_chunker = SemanticChunker(embeddings, breakpoint_threshold_type="percentile")
-        semantic_chunks = semantic_chunker.create_documents([d.page_content for d in docs])
+        semantic_chunks = semantic_chunker.create_documents([d.page_content for d in all_docs])
         vectorstore = FAISS.from_documents(documents=semantic_chunks, embedding=embeddings)
         retriever = vectorstore.as_retriever()
 
@@ -91,6 +107,18 @@ def setup_chat_chain(character_id: int):
             session_id=conversation_id,
             connection=os.getenv("ENV_CONNECTION")
         )
+    # def get_chat_message(user_id, conversation_id):
+    #     redis_history = RedisChatMessageHistory(
+    #         session_id=conversation_id,
+    #         redis_url=os.getenv("REDIS_URL"),
+    #         ttl=3600  # Optional TTL (1 hour) for example
+    #     )
+    #     sql_history = SQLChatMessageHistory(
+    #         table_name="chat_message",
+    #         session_id=conversation_id,
+    #         connection=os.getenv("ENV_CONNECTION")
+    #     )
+    #     return redis_history, sql_history
 
     config_field = [
         ConfigurableFieldSpec(id="user_id", annotation=int, is_shared=True),
@@ -104,7 +132,6 @@ def setup_chat_chain(character_id: int):
         history_messages_key="chat_message",
         history_factory_config=config_field
     )
-
 
 # 캐릭터에 따라 프롬프트 변경
 def get_prompt_by_character_id(character_id: int):
@@ -195,6 +222,7 @@ def setup_plankton_prompt():
             - 존댓말로 이야기하라는 말이 없다면 반말로 대답하세요.
             - 존댓말로 이야기하라는 말이 있다면 존댓말로 대답하세요.
             - You sometimes use emojis.
+            - Also: {relevant_info}
             """),
             MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
