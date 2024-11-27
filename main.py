@@ -8,6 +8,8 @@ from sqlalchemy import create_engine, text
 import speech_recognition as sr
 import pyttsx3
 from io import BytesIO
+from pydub import AudioSegment
+from pydub.playback import play
 
 app = FastAPI()
 
@@ -23,27 +25,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 텍스트를 음성으로 변환하는 함수(이득규)
-def text_to_speech(text: str):
-    engine = pyttsx3.init()
-    engine.say(text)
-    engine.runAndWait()
+# AI 응답을 받아 음성으로 변환하고 재생하는 함수(이득규)
+def play_ai_voice(text: str):
+    audio = generate_audio(text)  # generate_audio 함수가 텍스트를 음성으로 변환한다고 가정
+    sound = AudioSegment.from_file(BytesIO(audio), format="mp3")  # BytesIO로 변환된 audio를 mp3로 로드
+    play(sound)  # 음성 출력
 
-# 음성 파일을 텍스트로 변환하는 함수(이득규)
-def speech_to_text(audio_file: UploadFile):
-    recognizer = sr.Recognizer()
-    audio_data = audio_file.file.read()
-    
-    with BytesIO(audio_data) as audio_stream:
-        with sr.AudioFile(audio_stream) as source:
-            audio = recognizer.record(source)
-            try:
-                text = recognizer.recognize_google(audio, language="ko-KR")  # 한국어로 인식
-                return text
-            except sr.UnknownValueError:
-                raise HTTPException(status_code=400, detail="음성을 인식할 수 없습니다.")
-            except sr.RequestError:
-                raise HTTPException(status_code=500, detail="음성 인식 서비스에 문제가 발생했습니다.")
+# 텍스트를 음성으로 변환하는 함수 (pyttsx3 사용)(이득규)
+def generate_audio(text: str) -> BytesIO:
+    # 텍스트를 음성으로 변환 (pyttsx3 사용)
+    engine = pyttsx3.init()
+    audio_io = BytesIO()
+    engine.save_to_file(text, audio_io)
+    audio_io.seek(0)  # 파일 시작 위치로 이동
+    return audio_io
 
 
 # 캐릭터와 채팅
@@ -70,48 +65,13 @@ async def chat(request: ChatRequest):
         answer = ChatResponse(answer=response)
 
         # 음성으로 답변하기(이득규)
-        text_to_speech(response)
+        play_ai_voice(response)
 
         return answer
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-
-# 음성 파일을 받아서 텍스트로 변환 후 채팅하는 엔드포인트(이득규)
-@app.post("/chat_with_audio", response_model=ChatResponse)
-async def chat_with_audio(
-    audio: UploadFile = File(...),  # 음성 파일을 받기
-    user_id: int = Form(...),  # user_id를 Form으로 받기
-    conversation_id: int = Form(...),  # conversation_id를 Form으로 받기
-    character_id: int = Form(...)  # character_id를 Form으로 받기
-):
-    try:
-        # 음성 파일을 텍스트로 변환
-        question = speech_to_text(audio)
-
-        # chain을 캐릭터에 따라 set
-        chat_chain = setup_chat_chain(character_id)
-
-        config = {
-            "configurable": {
-                "user_id": user_id,
-                "conversation_id": conversation_id
-            }
-        }
-
-        # 변환된 텍스트로 질문 처리
-        response = chat_chain.invoke({"question": question}, config)
-        answer = ChatResponse(answer=response)
-
-        # 음성으로 답변하기
-        text_to_speech(response)
-
-        return answer
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 # TODO: 일정량의 최신 채팅 히스토리만 가져오고 나머지 히스토리는 무한스크롤로 로딩
 @app.get("/chat_history/{conversation_id}")
 async def get_history(conversation_id: int):

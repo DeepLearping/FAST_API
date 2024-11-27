@@ -120,6 +120,29 @@ def get_prompt_by_character_id(character_id: int):
         return setup_kimjeonil_prompt()
     else:
         raise ValueError(f"존재하지 않는 캐릭터 번호: {character_id}")
+    
+# 프롬프트에서 응답 받기
+def get_ai_response(character_id: int, question: str):
+    chat_chain = setup_chat_chain(character_id)
+    response = chat_chain.invoke({"question": question, "chat_history": ""})["result"]
+    return response
+
+# 음성 생성 및 재생 함수(이득규)
+def play_ai_voice(character_id: int, question: str):
+    # AI 응답을 받음
+    ai_response = get_ai_response(character_id, question)
+    
+    # Bark를 사용하여 음성으로 변환
+    audio = generate_audio(ai_response)
+    audio_path = f"audio/{character_id}_response.wav"
+    save_audio(audio, audio_path)
+    
+    # 생성된 음성 파일을 pydub로 재생
+    sound = AudioSegment.from_wav(audio_path)
+    play(sound)
+    
+    # 음성을 재생
+    play_ai_voice(character_id, question)
 
 # 스폰지밥 프롬프트
 def setup_spongebob_prompt():
@@ -255,7 +278,7 @@ def setup_kimjeonil_prompt():
     )
     return prompt
 
-# get_character_response_and_play_audio 함수 정의
+# get_character_response_and_play_audio 함수 정의(이득규)
 def get_character_response_and_play_audio(character_id: int, question: str):
     # 캐릭터 응답 생성
     chat_chain = setup_chat_chain(character_id)  # 대화 체인 설정
