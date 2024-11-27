@@ -92,7 +92,7 @@ async def chat(request: ChatRequest):
         # history.add_ai_message(
         #     AIMessage(
         #         content=response,
-        #         name=request.character_name,
+        #         # name=request.character_name,
         #         id=request.character_id
         #     )
         # )
@@ -131,7 +131,7 @@ async def chat(request: ChatRequest):
     #         character_id=request.character_id
     #     )
 
-    #     return ChatResponse(answer=response)
+    #     return ChatResponse(answer=response, character_id=request.character_id)
 
     # except Exception as e:
     #     raise HTTPException(status_code=500, detail=str(e))

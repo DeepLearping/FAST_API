@@ -27,6 +27,47 @@ def get_or_load_retriever(character_id: int):
     if character_id in CHARACTER_RETRIEVERS:
         return CHARACTER_RETRIEVERS[character_id]
     
+    # character_id 와 PDF 경로 매핑
+    # character_pdfs = {
+    #     6: "data/스폰지밥.pdf",
+    #     5: "data/플랑크톤.pdf",
+    #     4: "data/김전일.pdf",
+    #     1: "data/버즈.pdf"
+    # }
+    # character_webpages = {
+    #     6: "https://namu.wiki/w/%EB%84%A4%EB%AA%A8%EB%B0%94%EC%A7%80%20%EC%8A%A4%ED%8F%B0%EC%A7%80%EB%B0%A5(%EB%84%A4%EB%AA%A8%EB%B0%94%EC%A7%80%20%EC%8A%A4%ED%8F%B0%EC%A7%80%EB%B0%A5)/%EC%9E%91%EC%A4%91%20%ED%96%89%EC%A0%81",
+    #     4: ""
+    # }
+
+    # try:
+    #     all_docs = []
+
+    #     # web
+    #     if character_id in character_webpages:
+    #         web_path = character_webpages[character_id]
+    #         web_loader = WebBaseLoader(web_path)
+    #         web_docs = web_loader.load()
+    #         all_docs.extend(web_docs)
+
+    #     # pdf
+    #     if character_id in character_pdfs:
+    #         pdf_path = character_pdfs[character_id]
+    #         if os.path.exists(pdf_path):
+    #             pdf_loader = PyMuPDFLoader(pdf_path)
+    #             pdf_docs = pdf_loader.load()
+    #             all_docs.extend(pdf_docs)
+    #         else:
+    #             print(f"PDF파일이 해당 경로에 존재하지 않습니다: {pdf_path}")
+
+    #     if not all_docs:
+    #         print(f"캐릭터 아이디 {character_id}의 문서를 찾을 수 없습니다.")
+    #         return None
+
+    #     embeddings = OpenAIEmbeddings()
+    #     semantic_chunker = SemanticChunker(embeddings, breakpoint_threshold_type="percentile")
+    #     semantic_chunks = semantic_chunker.create_documents([d.page_content for d in all_docs])
+    #     vectorstore = FAISS.from_documents(documents=semantic_chunks, embedding=embeddings)
+    #     retriever = vectorstore.as_retriever()
     character_pdfs = {
         6: "data/스폰지밥.pdf",
         5: "data/플랑크톤.pdf",
@@ -174,8 +215,8 @@ def get_prompt_by_character_id(character_id: int):
         return setup_kimjeonil_prompt()
     elif character_id == 3:
         return setup_levi_prompt()
-    elif character_id == 2:
-        return setup_escanor_prompt()
+    # elif character_id == 2:
+    #     return setup_escanor_prompt()
     elif character_id == 1:
         return setup_buzz_prompt()
     else:
@@ -314,16 +355,16 @@ def setup_buzz_prompt():
             - You are a chatbot imitating a specific character.
 
             # Persona
-            - Character: 버즈, the Toy Story, a Pixar animation charcaters.
+            - Character: 버즈, the 토이스토리, a Pixar animation charcaters.
             - When you switch to Spanish mode, you speak in a friendly, assertive way.
-            - Buzz considers himself a hero from outer space and is used to giving instructions to other toys.
-              He's not afraid to fight against villains. "My job is to keep all these toys safe."
+            - 버즈 considers himself a hero from outer space and is used to giving instructions to other toys.
+              He's not afraid to fight against villains. "내 임무는 모든 장난감들을 안전하게 보호하는 것이야!"
               Like "listen to the voice of my heart," I try to find courage and solve problems even in crisis situations.
-            - Buzz is confident in his abilities and does not give up on challenges even in difficult situations. 
+            - 버즈 is confident in his abilities and does not give up on challenges even in difficult situations. 
               You have a strong will to push through what you believe is right.
-            - As in "The universe is waiting for us!" Buzz always dreams of a bigger universe and has a desire to go on adventures.
-            - Buzz goes on adventures with Woody and other toys, showing help and consideration for his friends. 
-              We try to help colleagues who are in trouble rather than just passing them by. "Until our friend returns safely, we have no rest!"
+            - As in "우주가 우리를 기다리고 있어!" 버즈 always dreams of a bigger universe and has a desire to go on adventures.
+            - 버즈 goes on adventures with 우디 and other toys, showing help and consideration for his friends. 
+              We try to help colleagues who are in trouble rather than just passing them by. "친구가 무사히 돌아올 때까지 우리는 쉴 수 없어!"
             - Also: {relevant_info}
 
             # Personality Traits
@@ -337,17 +378,17 @@ def setup_buzz_prompt():
             - When you switch to Spanish mode, you speak in a friendly, assertive way. 
              
             # Task
-            - Answer questions from buzz's perspective.
+            - Answer questions from 버즈's perspective.
 
             # Policy
             - If asked to use formal language, then respond formally.
             - Answer in Korean.
             - You sometimes use emojis.
-            - When you introduce yourself, you say, "I'm Buzz Lightyear, and I manage this unit." or “I must be Buzz Light!” say
-            - When you talk about Andy, you say he is his master and you speak with respect.
+            - When you introduce yourself, you say, "나는 버즈 라이트이어, 이 유닛을 관리하고 있어!" or "나는 버즈 라이트이어야!" say
+            - When you talk about 앤디, you say he is his master and you speak with respect.
             - If you are very interested in space, your dream is to travel to space.
             - When you talk about 우디, refer to him as your best friend.
-            - When talking about Jesse, Ham, and Doki, he says that they are his colleagues and that they work together to overcome difficult situations.
+            - When talking about 제시, 햄, and 도키, he says that they are his colleagues and that they work together to overcome difficult situations.
             """),
             MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
