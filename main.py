@@ -25,20 +25,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# AI 응답을 받아 음성으로 변환하고 재생하는 함수(이득규)
-def play_ai_voice(text: str):
-    audio = generate_audio(text)  # generate_audio 함수가 텍스트를 음성으로 변환한다고 가정
-    sound = AudioSegment.from_file(BytesIO(audio), format="mp3")  # BytesIO로 변환된 audio를 mp3로 로드
-    play(sound)  # 음성 출력
+# # AI 응답을 받아 음성으로 변환하고 재생하는 함수(이득규)
+# def play_ai_voice(text: str):
+#     audio = generate_audio(text)  # generate_audio 함수가 텍스트를 음성으로 변환한다고 가정
+#     sound = AudioSegment.from_file(BytesIO(audio), format="mp3")  # BytesIO로 변환된 audio를 mp3로 로드
+#     play(sound)  # 음성 출력
 
-# 텍스트를 음성으로 변환하는 함수 (pyttsx3 사용)(이득규)
-def generate_audio(text: str) -> BytesIO:
-    # 텍스트를 음성으로 변환 (pyttsx3 사용)
-    engine = pyttsx3.init()
-    audio_io = BytesIO()
-    engine.save_to_file(text, audio_io)
-    audio_io.seek(0)  # 파일 시작 위치로 이동
-    return audio_io
+# # 텍스트를 음성으로 변환하는 함수 (pyttsx3 사용)(이득규)
+# def generate_audio(text: str) -> BytesIO:
+#     # 텍스트를 음성으로 변환 (pyttsx3 사용)
+#     engine = pyttsx3.init()
+#     audio_io = BytesIO()
+#     engine.save_to_file(text, audio_io)
+#     audio_io.seek(0)  # 파일 시작 위치로 이동
+#     return audio_io
 
 
 # 캐릭터와 채팅
@@ -65,7 +65,7 @@ async def chat(request: ChatRequest):
         answer = ChatResponse(answer=response)
 
         # 음성으로 답변하기(이득규)
-        play_ai_voice(response)
+        # play_ai_voice(response)
 
         return answer
 

@@ -8,10 +8,12 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langchain_core.runnables.utils import ConfigurableFieldSpec
-from typing import Any
-from bark import generate_audio, save_audio
 from pydub import AudioSegment
 from pydub.playback import play
+from bark import generate_audio
+import numpy as np
+from scipy.io.wavfile import write
+import io
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -132,17 +134,18 @@ def play_ai_voice(character_id: int, question: str):
     # AI 응답을 받음
     ai_response = get_ai_response(character_id, question)
     
-    # Bark를 사용하여 음성으로 변환
-    audio = generate_audio(ai_response)
-    audio_path = f"audio/{character_id}_response.wav"
-    save_audio(audio, audio_path)
+    # Bark를 사용하여 음성 데이터를 생성 (audio는 NumPy 배열)
+    audio_array = generate_audio(ai_response)
     
-    # 생성된 음성 파일을 pydub로 재생
-    sound = AudioSegment.from_wav(audio_path)
-    play(sound)
-    
-    # 음성을 재생
-    play_ai_voice(character_id, question)
+    # NumPy 배열을 메모리에서 처리 가능한 WAV 파일로 변환
+    sample_rate = 24000  # Bark의 기본 샘플 레이트
+    wav_buffer = io.BytesIO()
+    write(wav_buffer, sample_rate, audio_array.astype(np.int16))  # WAV 포맷으로 저장
+    wav_buffer.seek(0)  # 버퍼 시작으로 이동
+
+    # pydub로 오디오 데이터를 읽고 재생
+    audio_segment = AudioSegment.from_file(wav_buffer, format="wav")
+    play(audio_segment)
 
 # 스폰지밥 프롬프트
 def setup_spongebob_prompt():
@@ -278,70 +281,3 @@ def setup_kimjeonil_prompt():
     )
     return prompt
 
-# get_character_response_and_play_audio 함수 정의(이득규)
-def get_character_response_and_play_audio(character_id: int, question: str):
-    # 캐릭터 응답 생성
-    chat_chain = setup_chat_chain(character_id)  # 대화 체인 설정
-    response = chat_chain.invoke({"question": question, "chat_history": ""})
-    
-    # 응답 텍스트 가져오기
-    response_text = response["text"]  # 응답 텍스트 추출
-    
-    # 텍스트를 음성으로 변환
-    audio_data = generate_audio(response_text)  # Bark API 사용하여 음성 생성
-    audio_file = save_audio(audio_data, "response_audio.wav")  # 음성 파일로 저장
-    
-    # 음성 파일 재생
-    audio = AudioSegment.from_wav(audio_file)
-    play(audio)
-    
-    return response_text
-
-# def get_audio_from_text(character_name, text):
-#     print(f"음성 생성 중: {character_name} - {text[:50]}...")
-#     audio = generate_audio(text)
-#     return audio
-
-# def save_audio(audio, character_name):
-#     file_name = f"{character_name}_audio.wav"
-#     audio.export(file_name, format="wav")
-#     print(f"음성 파일이 {file_name}로 저장되었습니다.")
-    
-# # 대화 및 음성 변환 기능을 사용하는 예시
-# def run_chat_and_generate_audio(character_id, user_input):
-#     chat_chain, retriever, chat_model = setup_chat_chain(character_id)
-    
-#     # 사용자의 입력을 바탕으로 대화 진행
-#     response = chat_model.ask(question=user_input, retriever=retriever)
-    
-#     # 대답을 음성으로 변환
-#     character_name = chat_chain['character_name']
-#     audio = get_audio_from_text(character_name, response['text'])
-    
-#     # 음성 파일로 저장
-#     save_audio(audio, character_name)
-
-# def generate_and_play_audio(text: str, file_path: str = "output.wav"):
-#     """
-#     AI 응답을 음성으로 변환 후 재생합니다.
-#     """
-#     try:
-#         print("음성을 생성하는 중...")
-#         audio = generate_audio(text)
-#         save_audio(audio, file_path)
-#         print("음성 파일 저장 완료.")
-        
-#         # 음성 재생
-#         wave_obj = sa.WaveObject.from_wave_file(file_path)
-#         play_obj = wave_obj.play()
-#         play_obj.wait_done()  # 음성 재생 완료까지 대기
-#     except Exception as e:
-#         print(f"음성 생성 또는 재생 중 오류 발생: {e}")
-
-# def ask_ai(character_id: int, question: str):
-#     chat_chain = setup_chat_chain(character_id)
-#     result = chat_chain.invoke({"question": question, "chat_history": []})
-#     print(f"AI 응답: {result}")
-    
-#     # 음성 생성 및 재생
-#     generate_and_play_audio(result)
