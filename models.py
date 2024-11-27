@@ -6,8 +6,8 @@ class ChatRequest(BaseModel):
     conversation_id: int
     question: str
     character_id: int
-    character_name: str
 
 # /chat response 모델
 class ChatResponse(BaseModel):
     answer: str
+    character_id: int
