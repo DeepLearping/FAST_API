@@ -11,3 +11,4 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     character_id: int
+    msg_img: int
