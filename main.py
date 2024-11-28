@@ -97,10 +97,40 @@ async def chat(request: ChatRequest):
         #     )
         # )
 
-        return ChatResponse(answer=response, character_id=request.character_id)
+        # 응답(response)에서 키워드 감지 및 이미지 URL 매핑
+        detected_keyword = query_routing(response)  # 응답 내용을 분석
+        msg_img= get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
+
+        print("msg_img: ", msg_img)
+        return ChatResponse(
+            answer=response,
+            character_id=request.character_id,
+            msg_img=msg_img
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+def query_routing(response: str) -> str:
+    """
+    응답 내용에서 키워드를 감지하는 함수.
+    """
+    keywords = ["기뻐", "슬퍼"]  # 감지하려는 키워드 목록
+    for keyword in keywords:
+        if keyword in response.lower():
+            return keyword
+    return "default"
+    
+def get_image_url(keyword: str) -> str:
+    """
+    키워드에 해당하는 이미지 URL 반환 함수.
+    """
+    msg_img_map = {
+        "기뻐": 1,
+        "슬퍼": 2,
+        "default": None
+    }
+    return msg_img_map.get(keyword, msg_img_map["default"])    
     
     # try:
     #     chat_chain = setup_chat_chain(request.character_id)
