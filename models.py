@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 # /chat request 모델
 class ChatRequest(BaseModel):
@@ -11,4 +12,4 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     character_id: int
-    msg_img: int
+    msg_img: Optional[int] = None
