@@ -194,8 +194,13 @@ async def get_history(conversation_id: int):
         )
 
         return {"messages": [
-#             {"role": "user" if msg.type == "human" else character_name, "content": msg.content}
-            {"role": "user" if msg.type == "human" else "ai", "content": msg.content}
+            {
+                "role": "user" if msg.type == "human" else "ai", 
+                "content": msg.content, 
+                #  "msgImgUrl": f"http://localhost:8080/chatMessage/getMsgImg/{msg.id}/{msg_img_no}.jpg" if ((msg_img_no := get_image_url(query_routing(msg.content))) != None and msg.type == "ai")
+                #                  else ""
+                "msgImgUrl": ""
+            }
             for msg in history.messages
         ]}
     except Exception as e:
