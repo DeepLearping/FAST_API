@@ -8,6 +8,9 @@ from chat_logic import setup_chat_chain
 from models import ChatRequest, ChatResponse
 import os
 from sqlalchemy import create_engine
+from gtts import gTTS  # gTTS 설치 필요
+import io
+from fastapi.responses import StreamingResponse
 
 app = FastAPI()
 
@@ -104,12 +107,24 @@ async def chat(request: ChatRequest):
         msg_img= get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
 
         print("msg_img: ", msg_img)
+
+        # TTS로 응답 생성
+        tts = gTTS(text=response, lang="ko")
+        # 메모리 버퍼에 TTS 데이터를 저장
+        audio_file = io.BytesIO()
+        tts.write_to_fp(audio_file)
+
+        # 버퍼의 처음으로 이동
+        audio_file.seek(0)
+
         return ChatResponse(
             answer=response,
             character_id=request.character_id,
-            msg_img=msg_img
-        )
+            msg_img=msg_img,
+            tts_url="/chat/stream_audio"
 
+        )
+    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -207,6 +222,26 @@ async def get_history(conversation_id: int):
 
     # except Exception as e:
     #     raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/chat/stream_audio")
+async def stream_audio():
+    try:
+        # TTS 응답을 바로 메모리에서 스트리밍
+        tts_text = "여기에서 음성을 생성할 텍스트를 작성하거나 요청에서 받은 텍스트로 대체"
+        tts = gTTS(text=tts_text, lang="ko")
+
+        # 메모리 버퍼에 저장
+        audio_file = io.BytesIO()
+        tts.write_to_fp(audio_file)
+
+        # 버퍼의 처음으로 이동
+        audio_file.seek(0)
+
+        # StreamingResponse로 음성 파일을 반환
+        return StreamingResponse(audio_file, media_type="audio/mpeg", headers={"Content-Disposition": "inline; filename=tts.mp3"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

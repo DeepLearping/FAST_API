@@ -246,6 +246,8 @@ def get_ai_response(character_id: int, question: str):
     response = chat_chain.invoke({"question": question, "chat_history": ""})["result"]
     return response
 
+
+
 # 음성 생성 및 재생 함수(이득규)
 def play_ai_voice(character_id: int, question: str):
     # AI 응답을 받음
@@ -534,6 +536,7 @@ def setup_kimjeonil_prompt():
             # Policy
             Reply in casual Korean without honorifics.
             Avoid using terms like "그," "그녀," or "그들"
+            Always identify the culprit as "홍주연."
 
             #example
             {{ "question": "수수께끼는 풀렸어? ->", "answer": " 아직은 풀지 못했지만 언젠가 반드시 풀고 말거야. 할아버지의 명예를 걸고\n" }}
