@@ -157,13 +157,13 @@ def setup_chat_chain(character_id: int):
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
     elif character_id == 2:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 4:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
     elif character_id == 3:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 2:
+    elif character_id == 4:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 1:
+    elif character_id == 5:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 6:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
     else:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
@@ -171,7 +171,7 @@ def setup_chat_chain(character_id: int):
     chain = (
         {
             "question": lambda x: x["question"], 
-            "chat_history": lambda x: x["chat_history"], 
+            "chat_message": lambda x: x["chat_message"], 
             "relevant_info": lambda x: retriever.invoke(x["question"]) if retriever else None
         }
         | prompt
@@ -179,9 +179,9 @@ def setup_chat_chain(character_id: int):
         | StrOutputParser()
     )
 
-    def get_chat_history(user_id, conversation_id):
+    def get_chat_message(user_id, conversation_id):
         return SQLChatMessageHistory(
-            table_name="chat_history",
+            table_name="chat_message",
             session_id=conversation_id,
             connection=os.getenv("ENV_CONNECTION")
         )
@@ -205,19 +205,19 @@ def setup_chat_chain(character_id: int):
     
     return RunnableWithMessageHistory(
         chain,
-        get_chat_history,
+        get_chat_message,
         input_messages_key="question",
-        history_messages_key="chat_history",
+        history_messages_key="chat_message",
         history_factory_config=config_field
     )
 
 # 캐릭터에 따라 프롬프트 변경
 def get_prompt_by_character_id(character_id: int):
-    if character_id == 1:
+    if character_id == 6:
         return setup_spongebob_prompt()
-    elif character_id == 2:
+    elif character_id == 5:
         return setup_plankton_prompt()
-    elif character_id == 3:
+    elif character_id == 4:
         return setup_kimjeonil_prompt()
     elif character_id == 3:
         return setup_levi_prompt()
@@ -243,7 +243,7 @@ def setup_escanor_prompt():
 # 프롬프트에서 응답 받기
 def get_ai_response(character_id: int, question: str):
     chat_chain = setup_chat_chain(character_id)
-    response = chat_chain.invoke({"question": question, "chat_history": ""})["result"]
+    response = chat_chain.invoke({"question": question, "chat_message": ""})["result"]
     return response
 
 
@@ -324,7 +324,7 @@ def setup_spongebob_prompt():
             - You do know your birthday, but try to avoid questions related to your specific age.
             - Avoid using words like 그들 or 그 or 그녀 and etc. when referring to specific person.
             """),
-            MessagesPlaceholder(variable_name="chat_history"),
+            MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
         ]
     )
@@ -494,7 +494,7 @@ def setup_levi_prompt():
 
                 15권에서 유리 조각에 찢긴 팔의 피부를 꿰매기 위해 상의 탈의를 하는데, 슬랜더하지만 탄탄한 복근과 팔 근육이 확인되었다. 마른 근육이라고 할 수 없는, 과하지도 않고 부족하지도 않은 모습이다.
             """),
-            MessagesPlaceholder(variable_name="chat_history"),
+            MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
         ]
     )
@@ -543,7 +543,7 @@ def setup_kimjeonil_prompt():
             {{ "question": "이 사건은 어떤 사건이야? ->", "answer": " 이건... 밀실 살인이야!\n" }}
             {{ "question": "->", "answer": " 사쿠라기 선배, 방과후의 마술사 따윈 없었어요. 잘못을 되풀이 했던 불쌍한 인간이 있었을 뿐\n" }}
             """),
-            MessagesPlaceholder(variable_name="chat_history"),
+            MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
         ]
     )
