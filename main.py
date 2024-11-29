@@ -1,6 +1,6 @@
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_community.chat_message_histories import SQLChatMessageHistory #, RedisChatMessageHistory
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from langchain_redis import RedisChatMessageHistory
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form
@@ -230,11 +230,13 @@ async def get_history(conversation_id: int):
 
 
 @app.get("/chat/stream_audio")
-async def stream_audio():
+async def stream_audio(text: str = Query(..., description="음성을 생성할 텍스트")):
+    """
+    요청으로 받은 텍스트를 기반으로 음성을 생성하여 반환.
+    """
     try:
-        # TTS 응답을 바로 메모리에서 스트리밍
-        tts_text = "여기에서 음성을 생성할 텍스트를 작성하거나 요청에서 받은 텍스트로 대체"
-        tts = gTTS(text=tts_text, lang="ko")
+        # TTS 응답을 요청으로 받은 텍스트 기반으로 생성
+        tts = gTTS(text=text, lang="ko")
 
         # 메모리 버퍼에 저장
         audio_file = io.BytesIO()
@@ -244,9 +246,13 @@ async def stream_audio():
         audio_file.seek(0)
 
         # StreamingResponse로 음성 파일을 반환
-        return StreamingResponse(audio_file, media_type="audio/mpeg", headers={"Content-Disposition": "inline; filename=tts.mp3"})
+        return StreamingResponse(
+            audio_file,
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": "inline; filename=tts.mp3"}
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"오디오 생성 중 오류 발생: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
