@@ -101,7 +101,7 @@ async def chat(request: ChatRequest):
         detected_keyword = query_routing(response)  # 응답 내용을 분석
         msg_img= get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
 
-        print("msg_img: ", msg_img)
+        # print("msg_img: ", msg_img)
         return ChatResponse(
             answer=response,
             character_id=request.character_id,
@@ -177,7 +177,13 @@ async def get_history(conversation_id: int):
         )
 
         return {"messages": [
-            {"role": "user" if msg.type == "human" else "ai", "content": msg.content}
+            {
+                "role": "user" if msg.type == "human" else "ai", 
+                "content": msg.content, 
+                #  "msgImgUrl": f"http://localhost:8080/chatMessage/getMsgImg/{msg.id}/{msg_img_no}.jpg" if ((msg_img_no := get_image_url(query_routing(msg.content))) != None and msg.type == "ai")
+                #                  else ""
+                "msgImgUrl": ""
+            }
             for msg in history.messages
         ]}
     except Exception as e:
