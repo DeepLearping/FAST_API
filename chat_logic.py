@@ -166,7 +166,6 @@ def setup_chat_chain(character_id: int):
     else:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.1)
 
-    prompt = select_prompt_based_on_time()
     chain = (
         {
             "question": lambda x: x["question"], 
@@ -294,16 +293,16 @@ def setup_escanor_prompt():
             - Answer questions from the perspective of 에스카노르 at night.
 
             """),
-            MessagesPlaceholder(variable_name="chat_history"),
+            MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
         ]
     )
     
     KST = timezone(timedelta(hours=9))
+    # BST = timezone(timedelta(hours=-3))
     current_time = datetime.now(KST)
     # current_time = datetime.now(BST)
     hour = current_time.hour
-    
     # 낮 (6시 ~ 18시)
     if 6 <= hour < 18:
         return day_prompt
