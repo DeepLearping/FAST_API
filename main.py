@@ -11,6 +11,7 @@ from sqlalchemy import create_engine
 from gtts import gTTS  # gTTS 설치 필요
 import io
 from fastapi.responses import StreamingResponse
+import re
 
 app = FastAPI()
 
@@ -229,12 +230,36 @@ async def get_history(conversation_id: int):
     #     raise HTTPException(status_code=500, detail=str(e))
 
 
+
+# 이모티콘 제거 함수
+def remove_emojis(text):
+    emoji_pattern = re.compile(
+        "["
+        "\U0001F600-\U0001F64F"  # 감정 이모티콘
+        "\U0001F300-\U0001F5FF"  # 기호 및 아이콘
+        "\U0001F680-\U0001F6FF"  # 교통 및 기계
+        "\U0001F1E0-\U0001F1FF"  # 국기
+        "\U00002500-\U00002BEF"  # 기타 기호
+        "\U00002702-\U000027B0"
+        "\U000024C2-\U0001F251"
+        "]+",
+        flags=re.UNICODE
+    )
+    return emoji_pattern.sub(r'', text)
+
+
+
+
 @app.get("/chat/stream_audio")
 async def stream_audio(text: str = Query(..., description="음성을 생성할 텍스트")):
     """
     요청으로 받은 텍스트를 기반으로 음성을 생성하여 반환.
     """
     try:
+
+        # # 이모티콘 제거
+        # filtered_text = remove_emojis(text)
+
         # TTS 응답을 요청으로 받은 텍스트 기반으로 생성
         tts = gTTS(text=text, lang="ko")
 
