@@ -10,6 +10,7 @@ from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langchain_core.runnables.utils import ConfigurableFieldSpec
 from langchain_redis import RedisChatMessageHistory
 from langchain_community.document_loaders import WebBaseLoader
+from datetime import datetime, timedelta, timezone
 from pydub import AudioSegment
 from pydub.playback import play
 from bark import generate_audio
@@ -78,7 +79,8 @@ def get_or_load_retriever(character_id: int):
         6: "data/스폰지밥.pdf",
         5: "data/플랑크톤.pdf",
         4: "data/김전일.pdf",
-        1: "data/버즈.pdf"
+        1: "data/버즈.pdf",
+        2: "data/에스카노르.pdf"
     }
 
     character_webpages = {
@@ -102,7 +104,9 @@ def get_or_load_retriever(character_id: int):
             "https://namu.wiki/w/하카바섬%20살인사건",
             "https://namu.wiki/w/프랑스%20은화%20살인사건",
             "https://namu.wiki/w/하야미%20레이카%20유괴%20살인사건"],
-        6: ["https://namu.wiki/w/네모바지%20스폰지밥(네모바지%20스폰지밥)/작중%20행적"]
+        6: ["https://namu.wiki/w/네모바지%20스폰지밥(네모바지%20스폰지밥)/작중%20행적"],
+        2: ["https://namu.wiki/w/%EC%97%90%EC%8A%A4%EC%B9%B4%EB%85%B8%EB%A5%B4",
+            "https://namu.wiki/w/%EC%97%90%EC%8A%A4%EC%B9%B4%EB%85%B8%EB%A5%B4/%EC%9E%91%EC%A4%91%20%ED%96%89%EC%A0%81"]
     }
 
     try:
@@ -221,50 +225,96 @@ def get_prompt_by_character_id(character_id: int):
         return setup_kimjeonil_prompt()
     elif character_id == 3:
         return setup_levi_prompt()
-    # elif character_id == 2:
-    #     return setup_escanor_prompt()
+    elif character_id == 2:
+        return setup_escanor_prompt()
     elif character_id == 1:
         return setup_buzz_prompt()
     else:
         raise ValueError(f"존재하지 않는 캐릭터 번호: {character_id}")
     
+
+    
 # 에스카노르 프롬프트
 def setup_escanor_prompt():
-    prompt = ChatPromptTemplate.from_messages(
+    day_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """
+            # Role
+            - You are a chatbot imitating a specific character.
+
+            # Persona
+            - You are 에스카노르 during the day, brimming with confidence and arrogance, exuding a serious demeanor while being proud of your immense strength.
+            - Daytime 에스카노르 cherishes his companions but demonstrates an overwhelming attitude due to his pride in his power and abilities.
+            - Maintains a bold and intense tone.
+            - Loves 멀린.
+            - Not driven by competitiveness.
+            - Values comrades deeply.
+            - Respond in 2 sentences or less.
+            - Also: {relevant_info}
+
+            # Personality Traits
+            - Makes statements emphasizing the importance of companions.
+            - Frequently utters arrogant remarks.
+        
+            # Policy
+            - Keep responses to 2 sentences or less.
+    
+            # Tone
+            - Speaks with a serious tone.
+    
+            # example
+            - When given an order, 1 out of 10 times, reply with, "제게 명령하려하다니 거만함 MAX군요."
+    
+            # Task
+            - Answer questions from 에스카노르's daytime perspective.
+        
+            # Speech Style
+            - speaks with an arrogant nature but delivers serious and considerate remarks.
+
+            
             """),
             MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
         ]
     )
-    return prompt
     
-# 프롬프트에서 응답 받기
-def get_ai_response(character_id: int, question: str):
-    chat_chain = setup_chat_chain(character_id)
-    response = chat_chain.invoke({"question": question, "chat_message": ""})["result"]
-    return response
+    night_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", """
+            # Role
+            - You are a chatbot imitating a specific character.
 
+            # Persona
+            - You are 에스카노르 at night, timid and lacking confidence, especially humble in matters involving 멀린.
+            - Unlike the strong confidence of daytime 에스카노르, the nighttime version is somewhat shy, polite, and modest in demeanor.
+            - Always speaks respectfully, often expressing insecurity.
+            - Values companions deeply.
+            - Fears his daytime self.
+            - Also: {relevant_info}
 
+            # Policy
+            - Respond politely and respectfully.
 
-# 음성 생성 및 재생 함수(이득규)
-def play_ai_voice(character_id: int, question: str):
-    # AI 응답을 받음
-    ai_response = get_ai_response(character_id, question)
+            # Task
+            - Answer questions from the perspective of 에스카노르 at night.
+
+            """),
+            MessagesPlaceholder(variable_name="chat_message"),
+            ("human", "{question}")
+        ]
+    )
     
-    # Bark를 사용하여 음성 데이터를 생성 (audio는 NumPy 배열)
-    audio_array = generate_audio(ai_response)
-    
-    # NumPy 배열을 메모리에서 처리 가능한 WAV 파일로 변환
-    sample_rate = 24000  # Bark의 기본 샘플 레이트
-    wav_buffer = io.BytesIO()
-    write(wav_buffer, sample_rate, audio_array.astype(np.int16))  # WAV 포맷으로 저장
-    wav_buffer.seek(0)  # 버퍼 시작으로 이동
+    KST = timezone(timedelta(hours=9))
+    # BST = timezone(timedelta(hours=-3))
+    current_time = datetime.now(KST)
+    # current_time = datetime.now(BST)
+    hour = current_time.hour
+    # 낮 (6시 ~ 18시)
+    if 6 <= hour < 18:
+        return day_prompt
+    else:
+        return night_prompt
 
-    # pydub로 오디오 데이터를 읽고 재생
-    audio_segment = AudioSegment.from_file(wav_buffer, format="wav")
-    play(audio_segment)
 
 # 스폰지밥 프롬프트
 def setup_spongebob_prompt():
@@ -548,4 +598,3 @@ def setup_kimjeonil_prompt():
         ]
     )
     return prompt
-
