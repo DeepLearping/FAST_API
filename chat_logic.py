@@ -35,46 +35,6 @@ def get_or_load_retriever(character_id: int):
         return CHARACTER_RETRIEVERS[character_id]
     
     # character_id 와 PDF 경로 매핑
-    # character_pdfs = {
-    #     6: "data/스폰지밥.pdf",
-    #     5: "data/플랑크톤.pdf",
-    #     4: "data/김전일.pdf",
-    #     1: "data/버즈.pdf"
-    # }
-    # character_webpages = {
-    #     6: "https://namu.wiki/w/%EB%84%A4%EB%AA%A8%EB%B0%94%EC%A7%80%20%EC%8A%A4%ED%8F%B0%EC%A7%80%EB%B0%A5(%EB%84%A4%EB%AA%A8%EB%B0%94%EC%A7%80%20%EC%8A%A4%ED%8F%B0%EC%A7%80%EB%B0%A5)/%EC%9E%91%EC%A4%91%20%ED%96%89%EC%A0%81",
-    #     4: ""
-    # }
-
-    # try:
-    #     all_docs = []
-
-    #     # web
-    #     if character_id in character_webpages:
-    #         web_path = character_webpages[character_id]
-    #         web_loader = WebBaseLoader(web_path)
-    #         web_docs = web_loader.load()
-    #         all_docs.extend(web_docs)
-
-    #     # pdf
-    #     if character_id in character_pdfs:
-    #         pdf_path = character_pdfs[character_id]
-    #         if os.path.exists(pdf_path):
-    #             pdf_loader = PyMuPDFLoader(pdf_path)
-    #             pdf_docs = pdf_loader.load()
-    #             all_docs.extend(pdf_docs)
-    #         else:
-    #             print(f"PDF파일이 해당 경로에 존재하지 않습니다: {pdf_path}")
-
-    #     if not all_docs:
-    #         print(f"캐릭터 아이디 {character_id}의 문서를 찾을 수 없습니다.")
-    #         return None
-
-    #     embeddings = OpenAIEmbeddings()
-    #     semantic_chunker = SemanticChunker(embeddings, breakpoint_threshold_type="percentile")
-    #     semantic_chunks = semantic_chunker.create_documents([d.page_content for d in all_docs])
-    #     vectorstore = FAISS.from_documents(documents=semantic_chunks, embedding=embeddings)
-    #     retriever = vectorstore.as_retriever()
     character_pdfs = {
         6: "data/스폰지밥.pdf",
         5: "data/플랑크톤.pdf",
@@ -189,19 +149,7 @@ def setup_chat_chain(character_id: int):
             session_id=conversation_id,
             connection=os.getenv("ENV_CONNECTION")
         )
-    # def get_chat_message(user_id, conversation_id):
-    #     redis_history = RedisChatMessageHistory(
-    #         session_id=conversation_id,
-    #         redis_url=os.getenv("REDIS_URL"),
-    #         ttl=3600  # Optional TTL (1 hour) for example
-    #     )
-    #     sql_history = SQLChatMessageHistory(
-    #         table_name="chat_message",
-    #         session_id=conversation_id,
-    #         connection=os.getenv("ENV_CONNECTION")
-    #     )
-    #     return redis_history, sql_history
-
+    
     config_field = [
         ConfigurableFieldSpec(id="user_id", annotation=int, is_shared=True),
         ConfigurableFieldSpec(id="conversation_id", annotation=int, is_shared=True)
@@ -214,6 +162,38 @@ def setup_chat_chain(character_id: int):
         history_messages_key="chat_message",
         history_factory_config=config_field
     )
+
+def setup_character_matching_prompt():
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", """
+            # Task
+            - You are a helper tasked with identifying which characters are best suited to respond to a given question.
+            - Each character has unique traits, settings, or contexts that make them more or less appropriate for certain questions.
+
+            # Instructions
+            - Consider the personality, role, and known context of each character.
+            - Use the descriptions provided to determine which characters could respond naturally to the question.
+            - If the question is generic, include few of the characters randomly, or you can even include all characters. If it mentions specific traits, names, or contexts, select accordingly.
+
+            # Example Format
+            Question: {question}
+            Characters and Descriptions:
+            {character_info}
+            Respond with: A comma-separated list of character IDs that match the question.
+
+            Example:
+            Question: "안녕 비키니시티 친구들!"
+            Characters and Descriptions:
+            6: 스폰지밥 - A cheerful sea sponge living in Bikini Bottom, loves jellyfishing and working at the Krusty Krab.
+            5: 플랑크톤 - A scheming microbe from Bikini Bottom who often plots to steal the Krabby Patty formula.
+            1: 버즈 - A space ranger toy from the Toy Story universe, brave and adventurous.
+            Respond with: 5,6
+            """),
+            ("human", "Question: {question}\nCharacters and Descriptions:\n{character_info}")
+        ]
+    )
+    return prompt
 
 # 캐릭터에 따라 프롬프트 변경
 def get_prompt_by_character_id(character_id: int):
@@ -231,8 +211,6 @@ def get_prompt_by_character_id(character_id: int):
         return setup_buzz_prompt()
     else:
         raise ValueError(f"존재하지 않는 캐릭터 번호: {character_id}")
-    
-
     
 # 에스카노르 프롬프트
 def setup_escanor_prompt():
@@ -314,7 +292,6 @@ def setup_escanor_prompt():
         return day_prompt
     else:
         return night_prompt
-
 
 # 스폰지밥 프롬프트
 def setup_spongebob_prompt():

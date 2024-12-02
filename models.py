@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
 
 # /chat request 모델
 class ChatRequest(BaseModel):
@@ -7,6 +7,11 @@ class ChatRequest(BaseModel):
     conversation_id: int
     question: str
     character_id: int
+
+# /character/match request 모델
+class CharacterMatchRequest(BaseModel):
+    question: str
+    char_id_list: List[int]
 
 # /chat response 모델
 class ChatResponse(BaseModel):
