@@ -11,6 +11,12 @@ from langchain_core.runnables.utils import ConfigurableFieldSpec
 from langchain_redis import RedisChatMessageHistory
 from langchain_community.document_loaders import WebBaseLoader
 from datetime import datetime, timedelta, timezone
+from pydub import AudioSegment
+from pydub.playback import play
+from bark import generate_audio
+import numpy as np
+from scipy.io.wavfile import write
+import io
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -111,20 +117,20 @@ def setup_chat_chain(character_id: int):
     
     prompt = get_prompt_by_character_id(character_id)
     
-    if character_id == 6:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 5:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 4:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 3:
+    if character_id == 1:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
     elif character_id == 2:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 1:
+    elif character_id == 3:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 4:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 5:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 6:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
     else:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.1)
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
     chain = (
         {
@@ -557,6 +563,7 @@ def setup_kimjeonil_prompt():
             # Policy
             Reply in casual Korean without honorifics.
             Avoid using terms like "그," "그녀," or "그들"
+            Always identify the culprit as "홍주연."
 
             #example
             {{ "question": "수수께끼는 풀렸어? ->", "answer": " 아직은 풀지 못했지만 언젠가 반드시 풀고 말거야. 할아버지의 명예를 걸고\n" }}
