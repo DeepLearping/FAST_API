@@ -166,51 +166,6 @@ def get_image_url(keyword: str) -> str:
     # except Exception as e:
     #     raise HTTPException(status_code=500, detail=str(e))
 
-# TODO: 일정량의 최신 채팅 히스토리만 가져오고 나머지 히스토리는 무한스크롤로 로딩
-@app.get("/chat_message/{conversation_id}")
-async def get_history(conversation_id: int):
-    try:
-        history = SQLChatMessageHistory(
-            table_name="chat_message",
-            session_id=conversation_id,
-            connection=os.getenv("ENV_CONNECTION")
-        )
-
-        return {"messages": [
-            {
-                "role": "user" if msg.type == "human" else "ai", 
-                "content": msg.content, 
-                #  "msgImgUrl": f"http://localhost:8080/chatMessage/getMsgImg/{msg.id}/{msg_img_no}.jpg" if ((msg_img_no := get_image_url(query_routing(msg.content))) != None and msg.type == "ai")
-                #                  else ""
-                "msgImgUrl": ""
-            }
-            for msg in history.messages
-        ]}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    # try:
-    #     # Redis와 MySQL에서 히스토리 모두 가져오기
-    #     redis_history, sql_history = get_chat_message(
-    #         user_id=None,  # No need for user_id here
-    #         conversation_id=conversation_id
-    #     )
-
-    #     # Redis에서 메세지 fetch
-    #     redis_messages = redis_history.messages
-
-    #     if not redis_messages:
-    #         # Redis에 아무 정보도 없으면 MySQL에서 fetch
-    #         sql_messages = sql_history.messages
-    #         redis_messages = [{"role": "user" if msg.type == "human" else "ai", "content": msg.content}
-    #                           for msg in sql_messages]
-
-    #     return {"messages": [{"role": "user" if msg.type == "human" else "ai", "content": msg.content}
-    #                          for msg in redis_messages]}
-
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=str(e))
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
