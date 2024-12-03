@@ -12,6 +12,10 @@ class ChatRequest(BaseModel):
 class CharacterMatchRequest(BaseModel):
     question: str
     char_id_list: List[int]
+    chat_history_list: List[str] = []
+
+class CharacterMatchResponse(BaseModel):
+    selected_char_id_list: List[int]
 
 # /chat response 모델
 class ChatResponse(BaseModel):
