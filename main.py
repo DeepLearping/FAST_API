@@ -7,8 +7,8 @@ from fastapi import FastAPI, HTTPException, Query
 from langchain_redis import RedisChatMessageHistory
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from fastapi import FastAPI, HTTPException
-from chat_logic import setup_chat_chain
-from models import CharacterMatchResponse, ChatRequest, ChatResponse
+from chat_logic import get_or_load_retriever, setup_chat_chain
+from models import CharacterMatchResponse, ChatRequest, ChatResponse, LoadInfoRequest
 from chat_logic import setup_character_matching_prompt, setup_chat_chain
 from models import CharacterMatchRequest, ChatRequest, ChatResponse
 from langchain_core.messages.ai import AIMessage
@@ -34,6 +34,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 방 입장 시 미리 필요한 데이터 로드
+@app.post("/load_info")
+async def chat(request: LoadInfoRequest):
+    char_id_list = request.char_id_list
+    
+    for char_id in char_id_list:
+        get_or_load_retriever(char_id)
 
 # 캐릭터와 채팅
 @app.post("/chat", response_model=ChatResponse)

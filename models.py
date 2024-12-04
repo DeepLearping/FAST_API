@@ -14,6 +14,9 @@ class CharacterMatchRequest(BaseModel):
     char_id_list: List[int]
     chat_history_list: List[str] = []
 
+class LoadInfoRequest(BaseModel):
+    char_id_list: List[int]
+
 class CharacterMatchResponse(BaseModel):
     selected_char_id_list: List[int]
 
