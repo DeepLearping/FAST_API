@@ -22,6 +22,7 @@ import re
 
 app = FastAPI()
 
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 DATABASE_URL = os.getenv("ENV_CONNECTION")
 engine = create_engine(DATABASE_URL)
 
