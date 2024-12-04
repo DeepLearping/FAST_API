@@ -31,7 +31,7 @@ def get_or_load_retriever(character_id: int):
 
     # 이미 CHARACTER_RETRIEVERS에 존재하면 로드하지 않고 리턴
     if character_id in CHARACTER_RETRIEVERS:
-        print(character_id, "는 이미 로드되어 있습니다.")
+        # print(character_id, "는 이미 로드되어 있습니다.")
         return CHARACTER_RETRIEVERS[character_id]
     
     # character_id 와 PDF 경로 매핑
@@ -106,8 +106,8 @@ def get_or_load_retriever(character_id: int):
         # 글로벌에 없으면 저장
         CHARACTER_RETRIEVERS[character_id] = retriever
 
-        print("로드하는 캐릭터 id: ", character_id)
-        print("로드된 캐릭터 개수: ", len(CHARACTER_RETRIEVERS))  # 몇 개의 캐릭터 정보를 로드했는지 확인
+        # print("로드하는 캐릭터 id: ", character_id)
+        # print("로드된 캐릭터 개수: ", len(CHARACTER_RETRIEVERS))  # 몇 개의 캐릭터 정보를 로드했는지 확인
 
         return retriever
 
