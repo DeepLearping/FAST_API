@@ -37,7 +37,7 @@ app.add_middleware(
 
 # 방 입장 시 미리 필요한 데이터 로드
 @app.post("/load_info")
-async def chat(request: LoadInfoRequest):
+async def load_info(request: LoadInfoRequest):
     char_id_list = request.char_id_list
     
     for char_id in char_id_list:
