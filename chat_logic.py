@@ -175,6 +175,7 @@ def setup_character_matching_prompt():
             - Consider the personality, role, and known context of each character.
             - Use the descriptions provided to determine which characters could respond naturally to the question.
             - If the question is generic, include few of the characters randomly, or you can even include all characters. If it mentions specific traits, names, or contexts, select accordingly.
+            - Try to choose least of the characters from given character IDs if it's possible, considering context of the conversation from Chat History.
 
             # Example Format
             Question: {question}
