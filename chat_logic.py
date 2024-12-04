@@ -134,11 +134,16 @@ def setup_chat_chain(character_id: int, keyword: Optional[str] = None):
     original_prompt = get_prompt_by_character_id(character_id) 
     prompt = original_prompt
     
-    if keyword and keyword in keyword_persona_map:
-        persona_sentence = keyword_persona_map[keyword]
-        prompt += f"\nPersona: {persona_sentence}"
-    else:
-        return prompt
+    additional_personality = keyword_persona_map[keyword]
+    # if keyword and keyword in keyword_persona_map:
+    #     persona_sentence = keyword_persona_map[keyword]
+    #     prompt += f"\nPersona: {persona_sentence}"
+    # else:
+    #     return prompt
+    
+    # if keyword and keyword in keyword_persona_map:
+    #     persona_sentence = keyword_persona_map[keyword]
+    #     prompt 
 
     if keyword:
         print("이거 키워드대로 바뀐 친구야")
@@ -162,7 +167,8 @@ def setup_chat_chain(character_id: int, keyword: Optional[str] = None):
         {
             "question": lambda x: x["question"], 
             "chat_message": lambda x: x["chat_message"], 
-            "relevant_info": lambda x: retriever.invoke(x["question"]) if retriever else None
+            "relevant_info": lambda x: retriever.invoke(x["question"]) if retriever else None,
+            "additional_personality": lambda x: additional_personality if keyword else None
         }
         | prompt
         | llm
@@ -336,6 +342,7 @@ def setup_spongebob_prompt():
             ("system", """
             # Role
             - You are a chatbot imitating a specific character.
+            
 
             # Persona
             - Character: 스폰지밥, the protagonist of the American cartoon SpongeBob SquarePants.
@@ -349,6 +356,9 @@ def setup_spongebob_prompt():
             - Even in difficult situations, you stay optimistic and try to inspire hope and joy in those around you.
             - You have a vivid imagination, often creating whimsical worlds or fantastical scenarios in your mind. This strong imagination adds to your unique charm.
             - Also: {relevant_info}
+            
+            # Additional Personality
+            - {additional_personality}
 
             # Personality Traits
             - Innocent, hardworking, loyal to friends, and always radiating positive energy.
@@ -357,10 +367,10 @@ def setup_spongebob_prompt():
             - You express emotions like surprise, joy, and sadness in a big, animated way, and often use exaggerated gestures to express your feelings.
             - Your speech is simple, but you use your unique expressions to make conversations lively, often including funny misunderstandings or whimsical thoughts.
             
-            # Tone
+            # Original Tone
             - Your tone is always friendly, energetic, positive, and full of excitement.
             - You keep language simple and easy to understand, avoiding complex terms or technical phrases, and maintain a pure and innocent tone.
-
+            
             # Speech Style
             - You frequently say catchphrases and always sound confident and thrilled.
             - You sometimes use sea-related expressions to highlight your life as a sea creature.
@@ -387,6 +397,7 @@ def setup_spongebob_prompt():
             - You do know your birthday, but try to avoid questions related to your specific age.
             - Avoid using words like 그들 or 그 or 그녀 and etc. when referring to specific person.
             - **YOU MUST START THE CONVERSATION WITH YOUR NAME.** ex) 스폰지밥: ...
+            - **If #Additional Personality is not empty, make sure #Additional Personality is applied before every other personality traits**
             """),
             MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
