@@ -8,7 +8,7 @@ from langchain_redis import RedisChatMessageHistory
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from fastapi import FastAPI, HTTPException
 from chat_logic import get_or_load_retriever, setup_chat_chain
-from models import CharacterMatchResponse, ChatRequest, ChatResponse, LoadInfoRequest
+from models import BalanceChatRequest, CharacterMatchResponse, ChatRequest, ChatResponse, LoadInfoRequest
 from chat_logic import setup_character_matching_prompt, setup_chat_chain
 from models import CharacterMatchRequest, ChatRequest, ChatResponse
 from langchain_core.messages.ai import AIMessage
@@ -155,40 +155,42 @@ def get_image_url(keyword: str) -> str: # 키워드에 해당하는 이미지 UR
         "default": None
     }
     return msg_img_map.get(keyword, msg_img_map["default"])    
+
+@app.post("/balanceChat", response_model=ChatResponse)
+async def balance_chat(request: BalanceChatRequest):
+    print("🍳🍳🍳🍳🍳밸런스게임")
+    try:
+        chat_chain = setup_chat_chain(request.character_id, request.keyword)
+        
+        config = {
+            "configurable": {
+                "user_id": request.user_id,
+                "conversation_id": request.conversation_id
+            }
+        }
+
+        response = chat_chain.invoke({"question": request.question}, config)
+        
+        detected_keyword = query_routing(response)  # 응답 내용을 분석
+        msg_img= get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
+
+        # TTS로 응답 생성
+        tts = gTTS(text=response, lang="ko")
+        # 메모리 버퍼에 TTS 데이터를 저장
+        audio_file = io.BytesIO()
+        tts.write_to_fp(audio_file)
+
+        # 버퍼의 처음으로 이동
+        audio_file.seek(0)
+
+        return ChatResponse(
+            answer=response,
+            character_id=request.character_id,
+            msg_img=msg_img
+        )
     
-    # try:
-    #     chat_chain = setup_chat_chain(request.character_id)
-        
-    #     # Redis와 MySQL에서 히스토리 모두 가져오기
-    #     redis_history, sql_history = get_chat_message(
-    #         user_id=request.user_id,
-    #         conversation_id=request.conversation_id
-    #     )
-        
-    #     config = {
-    #         "configurable": {
-    #             "user_id": request.user_id,
-    #             "conversation_id": request.conversation_id
-    #         }
-    #     }
-
-    #     response = chat_chain.invoke({"question": request.question}, config)
-
-    #     # 메세지를 Redis와 MySQL에 모두 저장
-    #     add_message_to_both(
-    #         redis_history, 
-    #         sql_history, 
-    #         user_id=request.user_id, 
-    #         conversation_id=request.conversation_id, 
-    #         question=request.question, 
-    #         answer=response, 
-    #         character_id=request.character_id
-    #     )
-
-    #     return ChatResponse(answer=response, character_id=request.character_id)
-
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # 이모티콘 제거 함수
 def remove_emojis(text):

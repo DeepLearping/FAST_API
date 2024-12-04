@@ -8,6 +8,13 @@ class ChatRequest(BaseModel):
     question: str
     character_id: int
 
+class BalanceChatRequest(BaseModel):
+    user_id: int
+    conversation_id: int
+    question: str
+    character_id: int  
+    keyword: Optional[str] = None  
+
 # /character/match request 모델
 class CharacterMatchRequest(BaseModel):
     question: str

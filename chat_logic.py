@@ -1,4 +1,5 @@
 import os
+from typing import Dict, Optional
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
@@ -115,11 +116,32 @@ def get_or_load_retriever(character_id: int):
         print(f"해당 캐릭터 번호의 pdf를 로드할 수 없습니다: {e}")
         return None
 
-def setup_chat_chain(character_id: int):
+def setup_chat_chain(character_id: int, keyword: Optional[str] = None):
+    
     # Lazy-load the retriever
     retriever = get_or_load_retriever(character_id)
     
-    prompt = get_prompt_by_character_id(character_id)
+    keyword_persona_map = {
+        "애교쟁이": "You are very sweet, charming, and full of playful cuteness that delights those you talk to.",
+        "피곤한": "You appear tired and speak in a slow, lethargic tone, reflecting a lack of energy.",
+        "난폭한": "You are rough and direct, using bold and intense expressions in your speech.",
+        "바보같은": "You are silly and lighthearted, often making amusing mistakes or showing a goofy demeanor.",
+        "열혈": "You are filled with passion and determination, speaking energetically and leading the conversation with enthusiasm.",
+        "찌질한": "You are timid and anxious, expressing yourself in a way that seems lacking in confidence.",
+        "우울한": "You speak in a sad and somber tone, often expressing pessimistic thoughts.",
+    }
+    
+    original_prompt = get_prompt_by_character_id(character_id) 
+    prompt = original_prompt
+    
+    if keyword and keyword in keyword_persona_map:
+        persona_sentence = keyword_persona_map[keyword]
+        prompt += f"\nPersona: {persona_sentence}"
+    else:
+        return prompt
+
+    if keyword:
+        print("이거 키워드대로 바뀐 친구야")
     
     if character_id == 1:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
