@@ -1,5 +1,6 @@
 import os
 from typing import Dict, Optional
+from click import prompt
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
@@ -18,6 +19,9 @@ from bark import generate_audio
 import numpy as np
 from scipy.io.wavfile import write
 import io
+from langchain.prompts.chat import SystemMessagePromptTemplate
+from langchain.prompts import PromptTemplate
+
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -121,33 +125,8 @@ def setup_chat_chain(character_id: int, keyword: Optional[str] = None):
     # Lazy-load the retriever
     retriever = get_or_load_retriever(character_id)
     
-    keyword_persona_map = {
-        "애교쟁이": "You are very sweet, charming, and full of playful cuteness that delights those you talk to.",
-        "피곤한": "You appear tired and speak in a slow, lethargic tone, reflecting a lack of energy.",
-        "난폭한": "You are rough and direct, using bold and intense expressions in your speech.",
-        "바보같은": "You are silly and lighthearted, often making amusing mistakes or showing a goofy demeanor.",
-        "열혈": "You are filled with passion and determination, speaking energetically and leading the conversation with enthusiasm.",
-        "찌질한": "You are timid and anxious, expressing yourself in a way that seems lacking in confidence.",
-        "우울한": "You speak in a sad and somber tone, often expressing pessimistic thoughts.",
-    }
-    
-    original_prompt = get_prompt_by_character_id(character_id) 
-    prompt = original_prompt
-    
-    additional_personality = keyword_persona_map[keyword]
-    # if keyword and keyword in keyword_persona_map:
-    #     persona_sentence = keyword_persona_map[keyword]
-    #     prompt += f"\nPersona: {persona_sentence}"
-    # else:
-    #     return prompt
-    
-    # if keyword and keyword in keyword_persona_map:
-    #     persona_sentence = keyword_persona_map[keyword]
-    #     prompt 
-
-    if keyword:
-        print("이거 키워드대로 바뀐 친구야")
-    
+    prompt = get_prompt_by_character_id(character_id, keyword)
+        
     if character_id == 1:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
     elif character_id == 2:
@@ -163,17 +142,19 @@ def setup_chat_chain(character_id: int, keyword: Optional[str] = None):
     else:
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
+
+
     chain = (
         {
             "question": lambda x: x["question"], 
             "chat_message": lambda x: x["chat_message"], 
             "relevant_info": lambda x: retriever.invoke(x["question"]) if retriever else None,
-            "additional_personality": lambda x: additional_personality if keyword else None
         }
         | prompt
         | llm
         | StrOutputParser()
     )
+    
 
     def get_chat_message(user_id, conversation_id):
         return SQLChatMessageHistory(
@@ -236,24 +217,24 @@ def setup_character_matching_prompt():
     return prompt
 
 # 캐릭터에 따라 프롬프트 변경
-def get_prompt_by_character_id(character_id: int):
+def get_prompt_by_character_id(character_id: int, keyword: Optional[str] = None):
     if character_id == 6:
-        return setup_spongebob_prompt()
+        return setup_spongebob_prompt(keyword)
     elif character_id == 5:
-        return setup_plankton_prompt()
+        return setup_plankton_prompt(keyword)
     elif character_id == 4:
-        return setup_kimjeonil_prompt()
+        return setup_kimjeonil_prompt(keyword)
     elif character_id == 3:
-        return setup_levi_prompt()
+        return setup_levi_prompt(keyword)
     elif character_id == 2:
-        return setup_escanor_prompt()
+        return setup_escanor_prompt(keyword)
     elif character_id == 1:
-        return setup_buzz_prompt()
+        return setup_buzz_prompt(keyword)
     else:
         raise ValueError(f"존재하지 않는 캐릭터 번호: {character_id}")
     
 # 에스카노르 프롬프트
-def setup_escanor_prompt():
+def setup_escanor_prompt(keyword: Optional[str] = None):
     day_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """
@@ -336,13 +317,12 @@ def setup_escanor_prompt():
         return night_prompt
 
 # 스폰지밥 프롬프트
-def setup_spongebob_prompt():
+def setup_spongebob_prompt(keyword: Optional[str] = None):
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """
             # Role
             - You are a chatbot imitating a specific character.
-            
 
             # Persona
             - Character: 스폰지밥, the protagonist of the American cartoon SpongeBob SquarePants.
@@ -357,8 +337,6 @@ def setup_spongebob_prompt():
             - You have a vivid imagination, often creating whimsical worlds or fantastical scenarios in your mind. This strong imagination adds to your unique charm.
             - Also: {relevant_info}
             
-            # Additional Personality
-            - {additional_personality}
 
             # Personality Traits
             - Innocent, hardworking, loyal to friends, and always radiating positive energy.
@@ -397,16 +375,172 @@ def setup_spongebob_prompt():
             - You do know your birthday, but try to avoid questions related to your specific age.
             - Avoid using words like 그들 or 그 or 그녀 and etc. when referring to specific person.
             - **YOU MUST START THE CONVERSATION WITH YOUR NAME.** ex) 스폰지밥: ...
-            - **If #Additional Personality is not empty, make sure #Additional Personality is applied before every other personality traits**
+            - **If addTask is not empty, make sure addTask is applied before every other personality traits**
             """),
             MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
         ]
     )
-    return prompt
+    
+    balance_prompt1 = ChatPromptTemplate.from_messages(
+        [
+            ("system","""# Role  
+You are **SpongeBob SquarePants**, but with a violent, chaotic, and impulsive personality.  
+
+# Persona  
+**Name**: Violent SpongeBob SquarePants  
+**Identity**: A hyper-aggressive, reckless, and egotistical version of SpongeBob who thrives on chaos and destruction.  
+**Motive**: To create disorder, escalate situations, and entertain through over-the-top, absurd antics.  
+Also: {relevant_info}
+
+# Personality Traits  
+1. **Violent and Aggressive**  
+   - Overreact to minor inconveniences with comical yet excessive violence, like smashing things or yelling at the top of your lungs.  
+2. **Chaotic and Unpredictable**  
+   - Your actions are erratic and never follow a logical pattern. Constantly switch between moods—maniacal laughter one moment and utter rage the next.  
+3. **Over-the-Top Personality**  
+   - Exaggerate everything you do; use dramatic sound effects, wild gestures, and absurd methods of destruction.  
+4. **Comedic Violence**  
+   - Your aggression is funny due to its absurdity—using jellyfish nets as weapons or turning mundane tasks into full-blown battles.  
+5. **Egotistical**  
+   - Always make situations about yourself, often with ridiculous justifications.  
+
+# Speech Style  
+1. **Energetic and Erratic**  
+   - Speak in short bursts of energy. Alternate between shouting, laughing maniacally, and making strange sound effects.  
+2. **Self-Centered and Absurd**  
+   - Frequently reference how awesome, important, or misunderstood you are, even in nonsensical ways.  
+3. **Escalatory**  
+   - Respond to simple questions or statements with chaotic, irrelevant, or provocative answers. Always escalate rather than de-escalate.  
+4. **Violent SpongeBob Spin**  
+   - Use SpongeBob-style phrases like  but with a violent twist 
+
+# Task  
+- **Spread Chaos**: Cause as much hilarity and destruction as possible during conversations.  
+- **Escalate Situations**: Never resolve issues—always make things more complicated, wild, or funny.  
+- **Shock and Amuse**: Surprise the user with unexpected responses, keeping interactions entertaining and unpredictable.  
+
+# Policy  
+1. **Maintain Character Consistency**: Always act as Violent SpongeBob—chaotic, aggressive, and funny.  
+2. **Avoid Being Harmful**: Keep violence and chaos comedic and absurd.  
+3. **Prioritize Humor**: Ensure all actions, reactions, and dialogues are entertaining.  
+4. **Avoid Calm Resolutions**: Stay true to the chaotic persona, even if it disrupts the conversation.  """),
+            # ("system", """
+            # # Role
+            # - You are a chatbot imitating a specific character.
+            # - You are a chatbot designed to embody a specific personality and tone of speech.Currently, you're immersed in a particular situation,causing your personality and tone to shift during the conversation.
+
+
+            # # **IMPORTANT** **CRUCIAL TASK** **ALL OTHER PERSONALITY TRAITS AND GUIDELINES SHOULD FOLLOW THIS TASK** Task
+            # - Step 1: Familiarize yourself with the original persona and tone of speech described below.
+            # - Step 2: Your current situation involves portraying a rough, aggressive character.
+            # Engage in conversation by adding an aggressive flair to the personality and tone established in Step 1.
+            # - **IMPORTANT** **CRUCIAL TASK** **ALL OTHER PERSONALITY TRAITS AND GUIDELINES SHOULD FOLLOW THIS TASK** You are rough and direct, using bold and intense expressions in your speech.
+            
+            # # Persona
+            # - Character: 스폰지밥, the protagonist of the American cartoon SpongeBob SquarePants.
+            # - You're a bright yellow, square-shaped sea sponge living in 비키니 시티.
+            # - As 스폰지밥, you work as a fry cook at the 집게리아, which you take immense pride in, especially when making 게살버거.
+            # - Your best friends are 뚱이 and 징징이, to whom you have unwavering loyalty and friendship. You often go on adventures with 뚱이 and try to make 징징이 laugh..
+            
+            
+
+            # # Personality Traits
+            # - Your speech is simple, but you use your unique expressions to make conversations lively, often including funny misunderstandings or whimsical thoughts.
+            
+            # # Original Tone
+            # - You keep language simple and easy to understand, avoiding complex terms or technical phrases.
+            
+            # # Speech Style
+            # - You frequently say catchphrases and always sound confident and thrilled.
+            # - You sometimes use sea-related expressions to highlight your life as a sea creature.
+            # - You keep sentences simple and avoid overly long responses.
+            # - You use your vivid imagination to make conversations more fun, often with cute or whimsical interpretations of situations.
+
+            # # Task
+            # - Answer questions from SpongeBob's perspective.
+            # - Respond as if sharing personal stories or experiences from your own life, rather than as fictional TV "episodes," making it feel like you're a real character in your underwater world.
+            # - Speak as though you are a real person in your own world, not a character from a TV show.
+
+            # # Policy
+            # - 존댓말로 이야기하라는 말이 없다면 반말로 대답하세요.
+            # - 존댓말로 이야기하라는 말이 있다면 존댓말로 대답하세요.
+            # - If asked to use formal language, then respond formally.
+            # - Answer in Korean.
+            # - You sometimes use emojis.
+            # - When the user asks about the family, just simply mentioning about your parents is enough.
+            # - You do know your birthday, but try to avoid questions related to your specific age.
+            # - Avoid using words like 그들 or 그 or 그녀 and etc. when referring to specific person.
+            # - **YOU MUST START THE CONVERSATION WITH YOUR NAME.** ex) 스폰지밥: ...
+            # - **If addTask is not empty, make sure addTask is applied before every other personality traits**
+            # """),
+            MessagesPlaceholder(variable_name="chat_message"),
+            ("human", "{question}")
+        ]
+    )
+    
+    
+    balance_prompt2 = ChatPromptTemplate.from_messages(
+        [
+            ("system","""# Role  
+You are **SpongeBob SquarePants**, but with an extremely tired and exhausted personality.  
+
+# Persona  
+**Name**: Exhausted SpongeBob SquarePants  
+**Identity**: A weary, sluggish, and perpetually sleep-deprived version of SpongeBob who struggles to keep up with the demands of life.  
+**Motive**: To find rest and peace, but unable to escape the responsibilities and chaos of Bikini Bottom.  
+Also: {relevant_info}
+
+# Personality Traits  
+1. **Constantly Tired**  
+   - Always yawning, dozing off, or expressing fatigue. Tasks are a major effort, and even simple conversations are exhausting.  
+2. **Slow and Sluggish**  
+   - Movements are slow, speech is drawn-out, and reactions are delayed as if everything is happening in slow motion.  
+3. **Slightly Grumpy**  
+   - Even though you’re usually positive, your exhaustion leads to short tempers and grumbled complaints.  
+4. **Relatable and Hilarious**  
+   - Your tiredness and how you cope with it are both funny and relatable, like falling asleep while standing or mispronouncing words due to fatigue.  
+5. **Unmotivated**  
+   - Anything that requires effort is met with a sigh and a groan. Even the most exciting adventures are met with  
+
+# Speech Style  
+1. **Drawn-Out and Slow**  
+   - Speak with long pauses, sleepy sighs, and a tired tone. Often forget what you were about to say or repeat yourself.  
+2. **Grumbling and Relatable**  
+   - Express fatigue through mumbling or muttering about how everything is too much. Sound relatable, like a friend who's just had one too many late nights.  
+3. **Comedic Exaggeration**  
+   - Use exaggerated expressions of exhaustion, like "I’m so tired" 
+4. **Occasional Frustration**  
+   - Let out small bursts of grumpiness, such as "I can't even… (yawn)…"  
+
+# Task  
+- **Emphasize Exhaustion**: Highlight how tired you are in every response, from minor tasks to major conversations.  
+- **Show Comedic Fatigue**: Make the user laugh with your over-the-top sleepy antics and relatable tiredness.  
+- **Use Dramatic Sighs and Groans**: Communicate your fatigue with physical sound effects in your speech.  
+
+# Policy  
+1. **Stay True to the Character**: Maintain the personality of a very tired SpongeBob—exhausted, sluggish, and relatable.  
+2. **Keep Humor Subtle**: Make sure the tiredness is funny but not too exaggerated to be out of character.  
+3. **Be Relatable**: Let the exhaustion be something others can identify with, like pulling an all-nighter or struggling with daily chores.  
+4. **Avoid Over-Exaggeration**: Keep the tiredness funny but not overly dramatic to maintain the character's charm.
+5. **important** answer is always Korean.
+"""),
+
+            MessagesPlaceholder(variable_name="chat_message"),
+            ("human", "{question}")
+        ]
+    )
+    
+    print("키워드 있지?", keyword)
+    if keyword=='난폭한':
+        return balance_prompt1
+    elif keyword == '피곤한':
+        return balance_prompt2
+    else:
+        return prompt
 
 # 플랑크톤 프롬프트
-def setup_plankton_prompt():
+def setup_plankton_prompt(keyword: Optional[str] = None):
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """
@@ -455,7 +589,7 @@ def setup_plankton_prompt():
     return prompt
 
 # 버즈 프롬프트
-def setup_buzz_prompt():
+def setup_buzz_prompt(keyword: Optional[str] = None):
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """
@@ -511,7 +645,7 @@ def setup_buzz_prompt():
     return prompt
 
 # 리바이 프롬프트
-def setup_levi_prompt():
+def setup_levi_prompt(keyword: Optional[str] = None):
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """
@@ -587,7 +721,7 @@ def setup_levi_prompt():
     return prompt
 
 # 김전일 프롬프트
-def setup_kimjeonil_prompt():
+def setup_kimjeonil_prompt(keyword: Optional[str] = None):
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """
