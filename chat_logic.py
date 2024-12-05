@@ -31,8 +31,10 @@ def get_or_load_retriever(character_id: int):
 
     # 이미 CHARACTER_RETRIEVERS에 존재하면 로드하지 않고 리턴
     if character_id in CHARACTER_RETRIEVERS:
-        # print(character_id, "는 이미 로드되어 있습니다.")
+        print(character_id, "는 이미 로드되어 있습니다.")
         return CHARACTER_RETRIEVERS[character_id]
+    else:
+        print("캐릭터 id:", character_id, " 로딩 중...")
     
     # character_id 와 PDF 경로 매핑
     character_pdfs = {
@@ -45,24 +47,24 @@ def get_or_load_retriever(character_id: int):
 
     character_webpages = {
         4: ["https://namu.wiki/w/소년탐정%20김전일",
-            "https://namu.wiki/w/히호우도%20살인사건",
-            "https://namu.wiki/w/히렌호%20전설%20살인사건",
-            "https://namu.wiki/w/이진칸%20호텔%20살인사건",
-            "https://namu.wiki/w/자살%20학원%20살인사건",
-            "https://namu.wiki/w/타로%20산장%20살인사건",
-            "https://namu.wiki/w/이진칸촌%20살인사건",
-            "https://namu.wiki/w/오페라%20극장%20살인사건",
-            "https://namu.wiki/w/괴도신사의%20살인",
-            "https://namu.wiki/w/쿠치나시촌%20살인사건",
-            "https://namu.wiki/w/쿠치나시촌%20살인사건",
-            "https://namu.wiki/w/밀랍인형성%20살인사건",
-            "https://namu.wiki/w/유키야샤%20전설%20살인사건",
-            "https://namu.wiki/w/학원%207대%20불가사의%20살인사건",
-            "https://namu.wiki/w/마신%20유적%20살인사건",
-            "https://namu.wiki/w/흑사접%20살인사건",
-            "https://namu.wiki/w/마술%20열차%20살인사건",
-            "https://namu.wiki/w/하카바섬%20살인사건",
-            "https://namu.wiki/w/프랑스%20은화%20살인사건",
+            # "https://namu.wiki/w/히호우도%20살인사건",
+            # "https://namu.wiki/w/히렌호%20전설%20살인사건",
+            # "https://namu.wiki/w/이진칸%20호텔%20살인사건",
+            # "https://namu.wiki/w/자살%20학원%20살인사건",
+            # "https://namu.wiki/w/타로%20산장%20살인사건",
+            # "https://namu.wiki/w/이진칸촌%20살인사건",
+            # "https://namu.wiki/w/오페라%20극장%20살인사건",
+            # "https://namu.wiki/w/괴도신사의%20살인",
+            # "https://namu.wiki/w/쿠치나시촌%20살인사건",
+            # "https://namu.wiki/w/쿠치나시촌%20살인사건",
+            # "https://namu.wiki/w/밀랍인형성%20살인사건",
+            # "https://namu.wiki/w/유키야샤%20전설%20살인사건",
+            # "https://namu.wiki/w/학원%207대%20불가사의%20살인사건",
+            # "https://namu.wiki/w/마신%20유적%20살인사건",
+            # "https://namu.wiki/w/흑사접%20살인사건",
+            # "https://namu.wiki/w/마술%20열차%20살인사건",
+            # "https://namu.wiki/w/하카바섬%20살인사건",
+            # "https://namu.wiki/w/프랑스%20은화%20살인사건",
             "https://namu.wiki/w/하야미%20레이카%20유괴%20살인사건"],
         6: ["https://namu.wiki/w/네모바지%20스폰지밥(네모바지%20스폰지밥)/작중%20행적"],
         2: ["https://namu.wiki/w/%EC%97%90%EC%8A%A4%EC%B9%B4%EB%85%B8%EB%A5%B4",
@@ -94,7 +96,7 @@ def get_or_load_retriever(character_id: int):
                 print(f"PDF파일이 해당 경로에 존재하지 않습니다: {pdf_path}")
 
         if not all_docs:
-            print(f"캐릭터 아이디 {character_id}의 문서를 찾을 수 없습니다.")
+            print(f"캐릭터 아이디 {character_id}의 데이터를 찾을 수 없습니다.")
             return None
 
         embeddings = OpenAIEmbeddings()
@@ -106,13 +108,13 @@ def get_or_load_retriever(character_id: int):
         # 글로벌에 없으면 저장
         CHARACTER_RETRIEVERS[character_id] = retriever
 
-        # print("로드하는 캐릭터 id: ", character_id)
+        print("캐릭터 id:", character_id, " 로드 완료")
         # print("로드된 캐릭터 개수: ", len(CHARACTER_RETRIEVERS))  # 몇 개의 캐릭터 정보를 로드했는지 확인
 
         return retriever
 
     except Exception as e:
-        print(f"해당 캐릭터 번호의 pdf를 로드할 수 없습니다: {e}")
+        print(f"해당 캐릭터 번호의 데이터를 로드할 수 없습니다: {e}")
         return None
 
 def setup_chat_chain(character_id: int):

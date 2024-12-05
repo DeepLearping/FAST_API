@@ -19,8 +19,18 @@ from gtts import gTTS  # gTTS 설치 필요
 import io
 from fastapi.responses import StreamingResponse
 import re
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+def init():
+    for char_id in [1, 2, 3, 4, 5, 6]:
+        get_or_load_retriever(char_id)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init()
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 DATABASE_URL = os.getenv("ENV_CONNECTION")
@@ -35,13 +45,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 방 입장 시 미리 필요한 데이터 로드
-@app.post("/load_info")
-async def load_info(request: LoadInfoRequest):
-    char_id_list = request.char_id_list
+# 방 입장 시 미리 필요한 데이터 로드 => FAST API 실행 시 모든 캐릭터 데이터 로드하는 걸로 변경
+# @app.post("/load_info")
+# async def load_info(request: LoadInfoRequest):
+#     char_id_list = request.char_id_list
     
-    for char_id in char_id_list:
-        get_or_load_retriever(char_id)
+#     for char_id in char_id_list:
+#         get_or_load_retriever(char_id)
 
 # 캐릭터와 채팅
 @app.post("/chat", response_model=ChatResponse)
