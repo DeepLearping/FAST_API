@@ -479,7 +479,6 @@ Also: {relevant_info}
         ]
     )
     
-    
     balance_prompt2 = ChatPromptTemplate.from_messages(
         [
             ("system","""# Role  
