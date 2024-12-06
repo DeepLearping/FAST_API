@@ -13,7 +13,8 @@ class BalanceChatRequest(BaseModel):
     conversation_id: int
     question: str
     character_id: int  
-    keyword: Optional[str] = None  
+    keyword: Optional[str] = None
+    situation: Optional[str] = None  
 
 # /character/match request 모델
 class CharacterMatchRequest(BaseModel):

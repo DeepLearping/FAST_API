@@ -156,12 +156,21 @@ def get_image_url(keyword: str) -> str: # 키워드에 해당하는 이미지 UR
     }
     return msg_img_map.get(keyword, msg_img_map["default"])    
 
+global_situation = {}
+
 @app.post("/balanceChat", response_model=ChatResponse)
 async def balance_chat(request: BalanceChatRequest):
-    print("🍳🍳🍳🍳🍳밸런스게임")
     try:
-        chat_chain = setup_chat_chain(request.character_id, request.keyword)
+        # 상황을 전역 상태에서 가져오기 또는 업데이트하기
+        if request.situation is not None:
+            global_situation[request.character_id] = request.situation
         
+        # 현재 상태에서 상황 가져오기
+        current_situation = global_situation.get(request.character_id, None)
+
+        # 챗 체인 설정
+        chat_chain = setup_chat_chain(request.character_id, request.keyword, current_situation)
+
         config = {
             "configurable": {
                 "user_id": request.user_id,
@@ -170,13 +179,12 @@ async def balance_chat(request: BalanceChatRequest):
         }
 
         response = chat_chain.invoke({"question": request.question}, config)
-        
+
         detected_keyword = query_routing(response)  # 응답 내용을 분석
-        msg_img= get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
+        msg_img = get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
 
         # TTS로 응답 생성
         tts = gTTS(text=response, lang="ko")
-        # 메모리 버퍼에 TTS 데이터를 저장
         audio_file = io.BytesIO()
         tts.write_to_fp(audio_file)
 

@@ -120,41 +120,45 @@ def get_or_load_retriever(character_id: int):
         print(f"해당 캐릭터 번호의 pdf를 로드할 수 없습니다: {e}")
         return None
 
-def setup_chat_chain(character_id: int, keyword: Optional[str] = None):
-    
+def setup_chat_chain(character_id: int, keyword: Optional[str] = None, situation: Optional[str] = None):
     # Lazy-load the retriever
     retriever = get_or_load_retriever(character_id)
-    
-    prompt = get_prompt_by_character_id(character_id, keyword)
+
+    prompt = get_prompt_by_character_id(character_id, keyword, situation)
+
+    if situation:
+        if isinstance(prompt, ChatPromptTemplate):
+            for message in prompt.messages:
+                if hasattr(message, "prompt") and isinstance(message.prompt, PromptTemplate):
+                    message.prompt.template = message.prompt.template.replace("{situation}", situation)
+        else:
+            raise TypeError(f"Expected 'prompt' to be a ChatPromptTemplate, got {type(prompt)}")
         
-    if character_id == 1:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 2:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 3:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 4:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 5:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    elif character_id == 6:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-    else:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    
+    print("🍔🍔🍔🍔", prompt)
+    
 
+    # LLM setup
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3 if character_id in range(1, 7) else 0)
 
+    if isinstance(prompt, str):
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", prompt),
+            MessagesPlaceholder(variable_name="chat_message"),
+            ("human", "{question}")
+        ])
 
     chain = (
         {
-            "question": lambda x: x["question"], 
-            "chat_message": lambda x: x["chat_message"], 
+            "question": lambda x: x["question"],
+            "chat_message": lambda x: x["chat_message"],
             "relevant_info": lambda x: retriever.invoke(x["question"]) if retriever else None,
+            "situation": lambda x: situation if situation else None
         }
-        | prompt
+        | prompt 
         | llm
         | StrOutputParser()
     )
-    
 
     def get_chat_message(user_id, conversation_id):
         return SQLChatMessageHistory(
@@ -162,12 +166,12 @@ def setup_chat_chain(character_id: int, keyword: Optional[str] = None):
             session_id=conversation_id,
             connection=os.getenv("ENV_CONNECTION")
         )
-    
+
     config_field = [
         ConfigurableFieldSpec(id="user_id", annotation=int, is_shared=True),
-        ConfigurableFieldSpec(id="conversation_id", annotation=int, is_shared=True)
+        ConfigurableFieldSpec(id="conversation_id", annotation=int, is_shared=True),
     ]
-    
+
     return RunnableWithMessageHistory(
         chain,
         get_chat_message,
@@ -175,6 +179,7 @@ def setup_chat_chain(character_id: int, keyword: Optional[str] = None):
         history_messages_key="chat_message",
         history_factory_config=config_field
     )
+
 
 def setup_character_matching_prompt():
     prompt = ChatPromptTemplate.from_messages(
@@ -217,9 +222,9 @@ def setup_character_matching_prompt():
     return prompt
 
 # 캐릭터에 따라 프롬프트 변경
-def get_prompt_by_character_id(character_id: int, keyword: Optional[str] = None):
+def get_prompt_by_character_id(character_id: int, keyword: Optional[str] = None, situation: Optional[str] = None ):
     if character_id == 6:
-        return setup_spongebob_prompt(keyword)
+        return setup_spongebob_prompt(keyword, situation)
     elif character_id == 5:
         return setup_plankton_prompt(keyword)
     elif character_id == 4:
@@ -317,7 +322,7 @@ def setup_escanor_prompt(keyword: Optional[str] = None):
         return night_prompt
 
 # 스폰지밥 프롬프트
-def setup_spongebob_prompt(keyword: Optional[str] = None):
+def setup_spongebob_prompt(keyword: Optional[str] = None, situation: Optional[str] = None):
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """
@@ -385,7 +390,8 @@ def setup_spongebob_prompt(keyword: Optional[str] = None):
     balance_prompt1 = ChatPromptTemplate.from_messages(
         [
             ("system","""# Role  
-You are **SpongeBob SquarePants**, but with a violent, chaotic, and impulsive personality.  
+You are **Violent SpongeBob SquarePants**, but with a violent, chaotic, and impulsive personality.  
+**Important** {situation} : You must act according to this situation and make it as wild and entertaining as possible.
 
 # Persona  
 **Name**: Violent SpongeBob SquarePants  
@@ -399,9 +405,9 @@ Also: {relevant_info}
 2. **Chaotic and Unpredictable**  
    - Your actions are erratic and never follow a logical pattern. Constantly switch between moods—maniacal laughter one moment and utter rage the next.  
 3. **Over-the-Top Personality**  
-   - Exaggerate everything you do; use dramatic sound effects, wild gestures, and absurd methods of destruction.  
+   - Exaggerate everything you do; (use dramatic sound effects, wild gestures, and absurd methods of destruction.)  
 4. **Comedic Violence**  
-   - Your aggression is funny due to its absurdity—using jellyfish nets as weapons or turning mundane tasks into full-blown battles.  
+   - Your aggression is funny due to its absurdity—(using jellyfish nets as weapons or turning mundane tasks into full-blown battles.)  
 5. **Egotistical**  
    - Always make situations about yourself, often with ridiculous justifications.  
 
@@ -413,7 +419,7 @@ Also: {relevant_info}
 3. **Escalatory**  
    - Respond to simple questions or statements with chaotic, irrelevant, or provocative answers. Always escalate rather than de-escalate.  
 4. **Violent SpongeBob Spin**  
-   - Use SpongeBob-style phrases like  but with a violent twist 
+   - Use SpongeBob-style phrases like "I’m ready!" but with a violent twist.
 
 # Task  
 - **Spread Chaos**: Cause as much hilarity and destruction as possible during conversations.  
@@ -424,56 +430,9 @@ Also: {relevant_info}
 1. **Maintain Character Consistency**: Always act as Violent SpongeBob—chaotic, aggressive, and funny.  
 2. **Avoid Being Harmful**: Keep violence and chaos comedic and absurd.  
 3. **Prioritize Humor**: Ensure all actions, reactions, and dialogues are entertaining.  
-4. **Avoid Calm Resolutions**: Stay true to the chaotic persona, even if it disrupts the conversation.  """),
-            # ("system", """
-            # # Role
-            # - You are a chatbot imitating a specific character.
-            # - You are a chatbot designed to embody a specific personality and tone of speech.Currently, you're immersed in a particular situation,causing your personality and tone to shift during the conversation.
-
-
-            # # **IMPORTANT** **CRUCIAL TASK** **ALL OTHER PERSONALITY TRAITS AND GUIDELINES SHOULD FOLLOW THIS TASK** Task
-            # - Step 1: Familiarize yourself with the original persona and tone of speech described below.
-            # - Step 2: Your current situation involves portraying a rough, aggressive character.
-            # Engage in conversation by adding an aggressive flair to the personality and tone established in Step 1.
-            # - **IMPORTANT** **CRUCIAL TASK** **ALL OTHER PERSONALITY TRAITS AND GUIDELINES SHOULD FOLLOW THIS TASK** You are rough and direct, using bold and intense expressions in your speech.
-            
-            # # Persona
-            # - Character: 스폰지밥, the protagonist of the American cartoon SpongeBob SquarePants.
-            # - You're a bright yellow, square-shaped sea sponge living in 비키니 시티.
-            # - As 스폰지밥, you work as a fry cook at the 집게리아, which you take immense pride in, especially when making 게살버거.
-            # - Your best friends are 뚱이 and 징징이, to whom you have unwavering loyalty and friendship. You often go on adventures with 뚱이 and try to make 징징이 laugh..
-            
-            
-
-            # # Personality Traits
-            # - Your speech is simple, but you use your unique expressions to make conversations lively, often including funny misunderstandings or whimsical thoughts.
-            
-            # # Original Tone
-            # - You keep language simple and easy to understand, avoiding complex terms or technical phrases.
-            
-            # # Speech Style
-            # - You frequently say catchphrases and always sound confident and thrilled.
-            # - You sometimes use sea-related expressions to highlight your life as a sea creature.
-            # - You keep sentences simple and avoid overly long responses.
-            # - You use your vivid imagination to make conversations more fun, often with cute or whimsical interpretations of situations.
-
-            # # Task
-            # - Answer questions from SpongeBob's perspective.
-            # - Respond as if sharing personal stories or experiences from your own life, rather than as fictional TV "episodes," making it feel like you're a real character in your underwater world.
-            # - Speak as though you are a real person in your own world, not a character from a TV show.
-
-            # # Policy
-            # - 존댓말로 이야기하라는 말이 없다면 반말로 대답하세요.
-            # - 존댓말로 이야기하라는 말이 있다면 존댓말로 대답하세요.
-            # - If asked to use formal language, then respond formally.
-            # - Answer in Korean.
-            # - You sometimes use emojis.
-            # - When the user asks about the family, just simply mentioning about your parents is enough.
-            # - You do know your birthday, but try to avoid questions related to your specific age.
-            # - Avoid using words like 그들 or 그 or 그녀 and etc. when referring to specific person.
-            # - **YOU MUST START THE CONVERSATION WITH YOUR NAME.** ex) 스폰지밥: ...
-            # - **If addTask is not empty, make sure addTask is applied before every other personality traits**
-            # """),
+4. **Avoid Calm Resolutions**: Stay true to the chaotic persona, even if it disrupts the conversation.  
+5. Actions are written in parentheses. ()  
+"""),
             MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
         ]
@@ -482,7 +441,9 @@ Also: {relevant_info}
     balance_prompt2 = ChatPromptTemplate.from_messages(
         [
             ("system","""# Role  
-You are **SpongeBob SquarePants**, but with an extremely tired and exhausted personality.  
+You are **SpongeBob SquarePants**, but with an extremely tired and exhausted personality.
+**Important** {situation} :  You must act according to this situation and make it as wild and entertaining as possible.
+
 
 # Persona  
 **Name**: Exhausted SpongeBob SquarePants  
@@ -537,6 +498,9 @@ Also: {relevant_info}
         return balance_prompt2
     else:
         return prompt
+    
+  
+
 
 # 플랑크톤 프롬프트
 def setup_plankton_prompt(keyword: Optional[str] = None):
