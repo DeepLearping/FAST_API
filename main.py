@@ -220,28 +220,28 @@ def get_image_url(keyword: str) -> str: # 키워드에 해당하는 이미지 UR
     # except Exception as e:
     #     raise HTTPException(status_code=500, detail=str(e))
 
-# TODO: 일정량의 최신 채팅 히스토리만 가져오고 나머지 히스토리는 무한스크롤로 로딩
-@app.get("/chat_message/{conversation_id}")
-async def get_history(conversation_id: int):
-    try:
-        history = SQLChatMessageHistory(
-            table_name="chat_message",
-            session_id=conversation_id,
-            connection=os.getenv("ENV_CONNECTION")
-        )
+# # TODO: 일정량의 최신 채팅 히스토리만 가져오고 나머지 히스토리는 무한스크롤로 로딩
+# @app.get("/chat_message/{conversation_id}")
+# async def get_history(conversation_id: int):
+#     try:
+#         history = SQLChatMessageHistory(
+#             table_name="chat_message",
+#             session_id=conversation_id,
+#             connection=os.getenv("ENV_CONNECTION")
+#         )
 
-        return {"messages": [
-            {
-                "role": "user" if msg.type == "human" else "ai", 
-                "content": msg.content, 
-                #  "msgImgUrl": f"http://localhost:8080/chatMessage/getMsgImg/{msg.id}/{msg_img_no}.jpg" if ((msg_img_no := get_image_url(query_routing(msg.content))) != None and msg.type == "ai")
-                #                  else ""
-                "msgImgUrl": ""
-            }
-            for msg in history.messages
-        ]}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+#         return {"messages": [
+#             {
+#                 "role": "user" if msg.type == "human" else "ai", 
+#                 "content": msg.content, 
+#                 #  "msgImgUrl": f"http://localhost:8080/chatMessage/getMsgImg/{msg.id}/{msg_img_no}.jpg" if ((msg_img_no := get_image_url(query_routing(msg.content))) != None and msg.type == "ai")
+#                 #                  else ""
+#                 "msgImgUrl": ""
+#             }
+#             for msg in history.messages
+#         ]}
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
 
     # try:
     #     # Redis와 MySQL에서 히스토리 모두 가져오기
