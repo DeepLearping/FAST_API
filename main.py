@@ -19,6 +19,7 @@ from gtts import gTTS  # gTTS 설치 필요
 import io
 from fastapi.responses import StreamingResponse
 import re
+import requests
 
 app = FastAPI()
 
@@ -74,13 +75,32 @@ async def chat(request: ChatRequest):
 
         print("msg_img: ", msg_img)
 
-        # TTS로 응답 생성
-        tts = gTTS(text=response, lang="ko")
-        # 메모리 버퍼에 TTS 데이터를 저장
-        audio_file = io.BytesIO()
-        tts.write_to_fp(audio_file)
+        # # TTS로 응답 생성
+        # tts = gTTS(text=response, lang="ko")
+        # # 메모리 버퍼에 TTS 데이터를 저장
+        # audio_file = io.BytesIO()
+        # tts.write_to_fp(audio_file)
 
-        # 버퍼의 처음으로 이동
+        # # 버퍼의 처음으로 이동
+        # audio_file.seek(0)
+
+        # TTS로 응답 생성
+        TTS_SERVER_URL = "http://localhost:5002/api/tts"
+        payload = {
+        "text": response,
+        "speaker_id": "default",
+        "style_wav": None,
+        }
+        tts_response = requests.post(TTS_SERVER_URL, json=payload)
+
+        if tts_response.status_code != 200:
+            raise HTTPException(
+        status_code=500,
+        detail=f"Coqui TTS 요청 실패: {tts_response.text}"
+    )
+
+        # 메모리 버퍼에 TTS 데이터를 저장
+        audio_file = io.BytesIO(tts_response.content)
         audio_file.seek(0)
 
         return ChatResponse(
@@ -247,36 +267,76 @@ def remove_emojis(text):
     return emoji_pattern.sub(r'', text)
 
 
-
-
 @app.get("/chat/stream_audio")
 async def stream_audio(text: str = Query(..., description="음성을 생성할 텍스트")):
+    print(f"Received text: {text}")  # 디버깅용 로그
+    if not text:
+        raise HTTPException(status_code=400, detail="text 파라미터가 비어있습니다.")
     """
-    요청으로 받은 텍스트를 기반으로 음성을 생성하여 반환.
+    요청으로 받은 텍스트를 기반으로 Coqui TTS를 사용하여 음성을 생성하고 반환.
     """
     try:
+        # Coqui TTS 서버 URL
+        TTS_SERVER_URL = "http://localhost:5002/api/tts"
+        
 
-        # # 이모티콘 제거
-        # filtered_text = remove_emojis(text)
+        # TTS 요청 데이터
+        payload = {
+            "text": text,
+            "speaker_id": "default",  # 필요 시 특정 speaker_id 지정
+            "style_wav": None,       # 스타일 참조 음성 (필요 없다면 None)
+        }
 
-        # TTS 응답을 요청으로 받은 텍스트 기반으로 생성
-        tts = gTTS(text=text, lang="ko")
+        # Coqui TTS 서버에 POST 요청
+        response = requests.post(TTS_SERVER_URL, json=payload)
 
-        # 메모리 버퍼에 저장
-        audio_file = io.BytesIO()
-        tts.write_to_fp(audio_file)
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Coqui TTS 요청 실패: {response.text}"
+            )
 
-        # 버퍼의 처음으로 이동
+        # 응답 음성 데이터를 반환
+        audio_file = io.BytesIO(response.content)
         audio_file.seek(0)
 
-        # StreamingResponse로 음성 파일을 반환
         return StreamingResponse(
             audio_file,
             media_type="audio/mpeg",
             headers={"Content-Disposition": "inline; filename=tts.mp3"}
         )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"오디오 생성 중 오류 발생: {str(e)}")
+
+# @app.get("/chat/stream_audio")
+# async def stream_audio(text: str = Query(..., description="음성을 생성할 텍스트")):
+#     """
+#     요청으로 받은 텍스트를 기반으로 음성을 생성하여 반환.
+#     """
+#     try:
+
+#         # # 이모티콘 제거
+#         # filtered_text = remove_emojis(text)
+
+#         # TTS 응답을 요청으로 받은 텍스트 기반으로 생성
+#         tts = gTTS(text=text, lang="ko")
+
+#         # 메모리 버퍼에 저장
+#         audio_file = io.BytesIO()
+#         tts.write_to_fp(audio_file)
+
+#         # 버퍼의 처음으로 이동
+#         audio_file.seek(0)
+
+#         # StreamingResponse로 음성 파일을 반환
+#         return StreamingResponse(
+#             audio_file,
+#             media_type="audio/mpeg",
+#             headers={"Content-Disposition": "inline; filename=tts.mp3"}
+#         )
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"오디오 생성 중 오류 발생: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
