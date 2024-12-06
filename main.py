@@ -19,7 +19,8 @@ import io
 from fastapi.responses import StreamingResponse
 import re
 from contextlib import asynccontextmanager
-from TTS import generate_gTTS_audio, generate_coqui_tts_audio
+# from TTS import generate_gTTS_audio, generate_coqui_tts_audio
+from TTS import TTS
 
 def init():
     for char_id in [1, 2, 3, 4, 5, 6]:
@@ -90,7 +91,7 @@ async def chat(request: ChatRequest):
         msg_img= get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
 
         # gTTS를 이용한 TTS 생성
-        audio_file = generate_gTTS_audio(text=response, lang="ko")
+        # audio_file = generate_gTTS_audio(text=response, lang="ko")
 
         # Coqui TTS 사용 예시
         # TTS_SERVER_URL = "http://localhost:5002/api/tts"
@@ -164,14 +165,38 @@ def get_image_url(keyword: str) -> str: # 키워드에 해당하는 이미지 UR
         "슬퍼": 2,
         "default": None
     }
-    return msg_img_map.get(keyword, msg_img_map["default"])    
+    return msg_img_map.get(keyword, msg_img_map["default"])
     
+# # TTS 인스턴스 생성
+# tts = TTS(use_local_gtts=False, tts_server_url="http://localhost:5002/api/tts")
+
+# @app.get("/chat/stream_audio")
+# async def stream_audio(text: str = Query(..., description="음성을 생성할 텍스트")):
+#     try:
+#         return tts.generate_audio(text)
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))    
+# @app.get("/chat/stream_audio")
+# async def stream_audio(text: str = Query(..., description="음성을 생성할 텍스트")):
+#     if not text:
+#         raise HTTPException(status_code=400, detail="text 파라미터가 비어있습니다.")
+#     audio_file = generate_gTTS_audio(text=text)
+#     return StreamingResponse(audio_file, media_type="audio/mpeg")
+# if __name__ == "__main__":
+#     import uvicorn
+#     uvicorn.run(app, host="0.0.0.0", port=8000)
+# TTS 인스턴스 생성 (언어: 한국어)
+tts = TTS(language="ko")
+
+
 @app.get("/chat/stream_audio")
 async def stream_audio(text: str = Query(..., description="음성을 생성할 텍스트")):
-    if not text:
-        raise HTTPException(status_code=400, detail="text 파라미터가 비어있습니다.")
-    audio_file = generate_gTTS_audio(text=text)
-    return StreamingResponse(audio_file, media_type="audio/mpeg")
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    """
+    텍스트를 받아 음성을 반환하는 API 엔드포인트
+    :param text: 음성을 생성할 텍스트
+    :return: StreamingResponse
+    """
+    try:
+        return tts.generate_audio(text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
