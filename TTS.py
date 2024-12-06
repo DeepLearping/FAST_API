@@ -88,6 +88,7 @@
 # tts_server_url = os.getenv("TTS_SERVER_URL", None)
 # tts = TTS(use_local_gtts=use_local_gtts, tts_server_url=tts_server_url)
 import io
+import re
 from gtts import gTTS
 from fastapi.responses import StreamingResponse
 
@@ -100,6 +101,16 @@ class TTS:
         """
         self.language = language
 
+    def preprocess_text(self, text: str) -> str:
+        """
+        텍스트 전처리: 이모티콘 및 불필요한 특수 문자 제거
+        :param text: 원본 텍스트
+        :return: 전처리된 텍스트
+        """
+        # 이모티콘 및 특수 문자 제거 (유니코드 범위 활용)
+        text = re.sub(r"[^\w\sㄱ-ㅎㅏ-ㅣ가-힣,.!?]", "", text)
+        return text
+
     def generate_audio(self, text: str):
         """
         텍스트를 음성으로 변환
@@ -109,8 +120,11 @@ class TTS:
         if not text:
             raise ValueError("텍스트가 비어 있습니다.")
         
+         # 텍스트 전처리
+        clean_text = self.preprocess_text(text)
+        
         # gTTS로 음성 생성
-        tts = gTTS(text=text, lang=self.language)
+        tts = gTTS(text=clean_text, lang=self.language)
         audio_file = io.BytesIO()
         tts.write_to_fp(audio_file)
         audio_file.seek(0)
