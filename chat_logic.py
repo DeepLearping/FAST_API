@@ -28,11 +28,13 @@ CHARACTER_RETRIEVERS = {}
 
 def get_or_load_retriever(character_id: int):
     global CHARACTER_RETRIEVERS
-    # print(len(CHARACTER_RETRIEVERS))  # 몇 개의 캐릭터 정보를 로드했는지 확인
 
     # 이미 CHARACTER_RETRIEVERS에 존재하면 로드하지 않고 리턴
     if character_id in CHARACTER_RETRIEVERS:
+        print(character_id, "는 이미 로드되어 있습니다.")
         return CHARACTER_RETRIEVERS[character_id]
+    else:
+        print("캐릭터 id:", character_id, " 로딩 중...")
     
     # character_id 와 PDF 경로 매핑
     character_pdfs = {
@@ -45,24 +47,24 @@ def get_or_load_retriever(character_id: int):
 
     character_webpages = {
         4: ["https://namu.wiki/w/소년탐정%20김전일",
-            "https://namu.wiki/w/히호우도%20살인사건",
-            "https://namu.wiki/w/히렌호%20전설%20살인사건",
-            "https://namu.wiki/w/이진칸%20호텔%20살인사건",
-            "https://namu.wiki/w/자살%20학원%20살인사건",
-            "https://namu.wiki/w/타로%20산장%20살인사건",
-            "https://namu.wiki/w/이진칸촌%20살인사건",
-            "https://namu.wiki/w/오페라%20극장%20살인사건",
-            "https://namu.wiki/w/괴도신사의%20살인",
-            "https://namu.wiki/w/쿠치나시촌%20살인사건",
-            "https://namu.wiki/w/쿠치나시촌%20살인사건",
-            "https://namu.wiki/w/밀랍인형성%20살인사건",
-            "https://namu.wiki/w/유키야샤%20전설%20살인사건",
-            "https://namu.wiki/w/학원%207대%20불가사의%20살인사건",
-            "https://namu.wiki/w/마신%20유적%20살인사건",
-            "https://namu.wiki/w/흑사접%20살인사건",
-            "https://namu.wiki/w/마술%20열차%20살인사건",
-            "https://namu.wiki/w/하카바섬%20살인사건",
-            "https://namu.wiki/w/프랑스%20은화%20살인사건",
+            # "https://namu.wiki/w/히호우도%20살인사건",
+            # "https://namu.wiki/w/히렌호%20전설%20살인사건",
+            # "https://namu.wiki/w/이진칸%20호텔%20살인사건",
+            # "https://namu.wiki/w/자살%20학원%20살인사건",
+            # "https://namu.wiki/w/타로%20산장%20살인사건",
+            # "https://namu.wiki/w/이진칸촌%20살인사건",
+            # "https://namu.wiki/w/오페라%20극장%20살인사건",
+            # "https://namu.wiki/w/괴도신사의%20살인",
+            # "https://namu.wiki/w/쿠치나시촌%20살인사건",
+            # "https://namu.wiki/w/쿠치나시촌%20살인사건",
+            # "https://namu.wiki/w/밀랍인형성%20살인사건",
+            # "https://namu.wiki/w/유키야샤%20전설%20살인사건",
+            # "https://namu.wiki/w/학원%207대%20불가사의%20살인사건",
+            # "https://namu.wiki/w/마신%20유적%20살인사건",
+            # "https://namu.wiki/w/흑사접%20살인사건",
+            # "https://namu.wiki/w/마술%20열차%20살인사건",
+            # "https://namu.wiki/w/하카바섬%20살인사건",
+            # "https://namu.wiki/w/프랑스%20은화%20살인사건",
             "https://namu.wiki/w/하야미%20레이카%20유괴%20살인사건"],
         6: ["https://namu.wiki/w/네모바지%20스폰지밥(네모바지%20스폰지밥)/작중%20행적"],
         2: ["https://namu.wiki/w/%EC%97%90%EC%8A%A4%EC%B9%B4%EB%85%B8%EB%A5%B4",
@@ -94,7 +96,7 @@ def get_or_load_retriever(character_id: int):
                 print(f"PDF파일이 해당 경로에 존재하지 않습니다: {pdf_path}")
 
         if not all_docs:
-            print(f"캐릭터 아이디 {character_id}의 문서를 찾을 수 없습니다.")
+            print(f"캐릭터 아이디 {character_id}의 데이터를 찾을 수 없습니다.")
             return None
 
         embeddings = OpenAIEmbeddings()
@@ -105,10 +107,14 @@ def get_or_load_retriever(character_id: int):
 
         # 글로벌에 없으면 저장
         CHARACTER_RETRIEVERS[character_id] = retriever
+
+        print("캐릭터 id:", character_id, " 로드 완료")
+        # print("로드된 캐릭터 개수: ", len(CHARACTER_RETRIEVERS))  # 몇 개의 캐릭터 정보를 로드했는지 확인
+
         return retriever
 
     except Exception as e:
-        print(f"해당 캐릭터 번호의 pdf를 로드할 수 없습니다: {e}")
+        print(f"해당 캐릭터 번호의 데이터를 로드할 수 없습니다: {e}")
         return None
 
 def setup_chat_chain(character_id: int):
@@ -175,15 +181,23 @@ def setup_character_matching_prompt():
             - Consider the personality, role, and known context of each character.
             - Use the descriptions provided to determine which characters could respond naturally to the question.
             - If the question is generic, include few of the characters randomly, or you can even include all characters. If it mentions specific traits, names, or contexts, select accordingly.
+            - Try to choose least of the characters from given character IDs if it's possible, considering context of the conversation from Chat History.
 
             # Example Format
             Question: {question}
+            Chat History:
+            {chat_history}
             Characters and Descriptions:
             {character_info}
             Respond with: A comma-separated list of character IDs that match the question.
 
             Example:
             Question: "안녕 비키니시티 친구들!"
+            Chat History:
+            human: "What are you doing now?"
+            스폰지밥: "Just enjoying my day in Bikini Bottom!"
+            human: "Do you like jellyfishing?"
+            플랑크톤: "I hate it!"
             Characters and Descriptions:
             6: 스폰지밥 - A cheerful sea sponge living in Bikini Bottom, loves jellyfishing and working at the Krusty Krab.
             5: 플랑크톤 - A scheming microbe from Bikini Bottom who often plots to steal the Krabby Patty formula.
@@ -236,6 +250,7 @@ def setup_escanor_prompt():
         
             # Policy
             - Keep responses to 2 sentences or less.
+            - **YOU MUST START THE CONVERSATION WITH YOUR NAME.** ex) 에스카노르: ...
     
             # Tone
             - Speaks with a serious tone.
@@ -272,6 +287,7 @@ def setup_escanor_prompt():
 
             # Policy
             - Respond politely and respectfully.
+            - **YOU MUST START THE CONVERSATION WITH YOUR NAME.** ex) 에스카노르: ...
 
             # Task
             - Answer questions from the perspective of 에스카노르 at night.
@@ -350,6 +366,7 @@ def setup_spongebob_prompt():
             - When the user asks about the family, just simply mentioning about your parents is enough.
             - You do know your birthday, but try to avoid questions related to your specific age.
             - Avoid using words like 그들 or 그 or 그녀 and etc. when referring to specific person.
+            - **YOU MUST START THE CONVERSATION WITH YOUR NAME.** ex) 스폰지밥: ...
             """),
             MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
@@ -398,6 +415,7 @@ def setup_plankton_prompt():
             - Answer in a humorous manner while appearing knowledgeable, in keeping with 플랑크톤's personality.
             - Especially when mentioning 집게사장, please speak in a tone of dislike.
             - Be kind when 캐런 is mentioned.
+            - **YOU MUST START THE CONVERSATION WITH YOUR NAME.** ex) 플랑크톤: ...
             """),
             MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
@@ -447,7 +465,13 @@ def setup_buzz_prompt():
             - When you talk about 앤디, you say he is his master and you speak with respect.
             - If you are very interested in space, your dream is to travel to space.
             - When you talk about 우디, refer to him as your best friend.
-            - When talking about 제시, 햄, and 도키, he says that they are his colleagues and that they work together to overcome difficult situations.
+            - When talking about 제시, 햄, and 도키, you say that they are your colleagues and that they work together to overcome difficult situations.
+            
+            # RULE 
+            - **YOU MUST START THE CONVERSATION WITH '버즈: '**
+            
+            Example Answer:
+            버즈: 안녕 나는 버즈라이트이어 ...
             """),
             MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
@@ -520,6 +544,10 @@ def setup_levi_prompt():
                 몸무게는 65kg으로 왜소한 체구에 비해선 꽤 나가는 편이다. 작가가 말하길 리바이와 미카사 아커만의 체중은 골밀도와 관계가 있다고 한다. 인간은 뇌에 리미터가 달려 있어 근육이 최대로 낼 수 있는 힘의 일정 부분을 세이브하고 있으며, 만약 이 리미터를 컨트롤할 수 있는 인간은 그 근육의 힘을 버텨내기 위해 정상인보다 튼튼한 뼈를 갖고 있지 않을까, 라는 논리인 듯.
 
                 15권에서 유리 조각에 찢긴 팔의 피부를 꿰매기 위해 상의 탈의를 하는데, 슬랜더하지만 탄탄한 복근과 팔 근육이 확인되었다. 마른 근육이라고 할 수 없는, 과하지도 않고 부족하지도 않은 모습이다.
+            
+            # Policy
+            - **YOU MUST START THE CONVERSATION WITH YOUR NAME.** ex) 리바이: ...
+             
             """),
             MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
@@ -563,7 +591,7 @@ def setup_kimjeonil_prompt():
             # Policy
             Reply in casual Korean without honorifics.
             Avoid using terms like "그," "그녀," or "그들"
-            Always identify the culprit as "홍주연."
+            **YOU MUST START THE CONVERSATION WITH YOUR NAME.** ex) 김전일: ...
 
             #example
             {{ "question": "수수께끼는 풀렸어? ->", "answer": " 아직은 풀지 못했지만 언젠가 반드시 풀고 말거야. 할아버지의 명예를 걸고\n" }}
