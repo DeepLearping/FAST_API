@@ -15,11 +15,11 @@ from langchain_core.messages.ai import AIMessage
 from langchain_core.messages import HumanMessage
 import os
 from sqlalchemy import create_engine
-from gtts import gTTS  # gTTS 설치 필요
 import io
 from fastapi.responses import StreamingResponse
 import re
 from contextlib import asynccontextmanager
+from TTS import generate_gTTS_audio, generate_coqui_tts_audio
 
 def init():
     for char_id in [1, 2, 3, 4, 5, 6]:
@@ -89,38 +89,18 @@ async def chat(request: ChatRequest):
         detected_keyword = query_routing(response)  # 응답 내용을 분석
         msg_img= get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
 
-        # TTS로 응답 생성
-        tts = gTTS(text=response, lang="ko")
-        # 메모리 버퍼에 TTS 데이터를 저장
-        audio_file = io.BytesIO()
-        tts.write_to_fp(audio_file)
+        # gTTS를 이용한 TTS 생성
+        audio_file = generate_gTTS_audio(text=response, lang="ko")
 
-        # 버퍼의 처음으로 이동
-        audio_file.seek(0)
-
-    #     # TTS로 응답 생성
-    #     TTS_SERVER_URL = "http://localhost:5002/api/tts"
-    #     payload = {
-    #     "text": response,
-    #     "speaker_id": "default",
-    #     "style_wav": None,
-    #     }
-    #     tts_response = requests.post(TTS_SERVER_URL, json=payload)
-
-    #     if tts_response.status_code != 200:
-    #         raise HTTPException(
-    #     status_code=500,
-    #     detail=f"Coqui TTS 요청 실패: {tts_response.text}"
-    # )
-
-    #     # 메모리 버퍼에 TTS 데이터를 저장
-    #     audio_file = io.BytesIO(tts_response.content)
-    #     audio_file.seek(0)
+        # Coqui TTS 사용 예시
+        # TTS_SERVER_URL = "http://localhost:5002/api/tts"
+        # audio_file = generate_coqui_tts_audio(response, TTS_SERVER_URL)
 
         return ChatResponse(
             answer=response,
             character_id=request.character_id,
-            msg_img=msg_img
+            msg_img=msg_img,
+            tts_url="/chat/stream_audio"
         )
     
     except Exception as e:
@@ -186,174 +166,12 @@ def get_image_url(keyword: str) -> str: # 키워드에 해당하는 이미지 UR
     }
     return msg_img_map.get(keyword, msg_img_map["default"])    
     
-    # try:
-    #     chat_chain = setup_chat_chain(request.character_id)
-        
-    #     # Redis와 MySQL에서 히스토리 모두 가져오기
-    #     redis_history, sql_history = get_chat_message(
-    #         user_id=request.user_id,
-    #         conversation_id=request.conversation_id
-    #     )
-        
-    #     config = {
-    #         "configurable": {
-    #             "user_id": request.user_id,
-    #             "conversation_id": request.conversation_id
-    #         }
-    #     }
-
-    #     response = chat_chain.invoke({"question": request.question}, config)
-
-    #     # 메세지를 Redis와 MySQL에 모두 저장
-    #     add_message_to_both(
-    #         redis_history, 
-    #         sql_history, 
-    #         user_id=request.user_id, 
-    #         conversation_id=request.conversation_id, 
-    #         question=request.question, 
-    #         answer=response, 
-    #         character_id=request.character_id
-    #     )
-
-    #     return ChatResponse(answer=response, character_id=request.character_id)
-
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=str(e))
-
-# # TODO: 일정량의 최신 채팅 히스토리만 가져오고 나머지 히스토리는 무한스크롤로 로딩
-# @app.get("/chat_message/{conversation_id}")
-# async def get_history(conversation_id: int):
-#     try:
-#         history = SQLChatMessageHistory(
-#             table_name="chat_message",
-#             session_id=conversation_id,
-#             connection=os.getenv("ENV_CONNECTION")
-#         )
-
-#         return {"messages": [
-#             {
-#                 "role": "user" if msg.type == "human" else "ai", 
-#                 "content": msg.content, 
-#                 #  "msgImgUrl": f"http://localhost:8080/chatMessage/getMsgImg/{msg.id}/{msg_img_no}.jpg" if ((msg_img_no := get_image_url(query_routing(msg.content))) != None and msg.type == "ai")
-#                 #                  else ""
-#                 "msgImgUrl": ""
-#             }
-#             for msg in history.messages
-#         ]}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-    # try:
-    #     # Redis와 MySQL에서 히스토리 모두 가져오기
-    #     redis_history, sql_history = get_chat_message(
-    #         user_id=None,  # No need for user_id here
-    #         conversation_id=conversation_id
-    #     )
-
-    #     # Redis에서 메세지 fetch
-    #     redis_messages = redis_history.messages
-
-    #     if not redis_messages:
-    #         # Redis에 아무 정보도 없으면 MySQL에서 fetch
-    #         sql_messages = sql_history.messages
-    #         redis_messages = [{"role": "user" if msg.type == "human" else "ai", "content": msg.content}
-    #                           for msg in sql_messages]
-
-    #     return {"messages": [{"role": "user" if msg.type == "human" else "ai", "content": msg.content}
-    #                          for msg in redis_messages]}
-
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=str(e))
-
-
-
-# 이모티콘 제거 함수
-def remove_emojis(text):
-    emoji_pattern = re.compile(
-        "["
-        "\U0001F600-\U0001F64F"  # 감정 이모티콘
-        "\U0001F300-\U0001F5FF"  # 기호 및 아이콘
-        "\U0001F680-\U0001F6FF"  # 교통 및 기계
-        "\U0001F1E0-\U0001F1FF"  # 국기
-        "\U00002500-\U00002BEF"  # 기타 기호
-        "\U00002702-\U000027B0"
-        "\U000024C2-\U0001F251"
-        "]+",
-        flags=re.UNICODE
-    )
-    return emoji_pattern.sub(r'', text)
-
-
-# @app.get("/chat/stream_audio")
-# async def stream_audio(text: str = Query(..., description="음성을 생성할 텍스트")):
-#     print(f"Received text: {text}")  # 디버깅용 로그
-#     if not text:
-#         raise HTTPException(status_code=400, detail="text 파라미터가 비어있습니다.")
-#     """
-#     요청으로 받은 텍스트를 기반으로 Coqui TTS를 사용하여 음성을 생성하고 반환.
-#     """
-#     try:
-#         # Coqui TTS 서버 URL
-#         TTS_SERVER_URL = "http://localhost:5002/api/tts"
-        
-
-#         # TTS 요청 데이터
-#         payload = {
-#             "text": text,
-#             "speaker_id": "default",  # 필요 시 특정 speaker_id 지정
-#             "style_wav": None,       # 스타일 참조 음성 (필요 없다면 None)
-#         }
-
-#         # Coqui TTS 서버에 POST 요청
-#         response = requests.post(TTS_SERVER_URL, json=payload)
-
-#         if response.status_code != 200:
-#             raise HTTPException(
-#                 status_code=500,
-#                 detail=f"Coqui TTS 요청 실패: {response.text}"
-#             )
-
-#         # 응답 음성 데이터를 반환
-#         audio_file = io.BytesIO(response.content)
-#         audio_file.seek(0)
-
-#         return StreamingResponse(
-#             audio_file,
-#             media_type="audio/mpeg",
-#             headers={"Content-Disposition": "inline; filename=tts.mp3"}
-#         )
-
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"오디오 생성 중 오류 발생: {str(e)}")
-
 @app.get("/chat/stream_audio")
 async def stream_audio(text: str = Query(..., description="음성을 생성할 텍스트")):
-    """
-    요청으로 받은 텍스트를 기반으로 음성을 생성하여 반환.
-    """
-    try:
-        # # 이모티콘 제거
-        # filtered_text = remove_emojis(text)
-
-        # TTS 응답을 요청으로 받은 텍스트 기반으로 생성
-        tts = gTTS(text=text, lang="ko")
-
-        # 메모리 버퍼에 저장
-        audio_file = io.BytesIO()
-        tts.write_to_fp(audio_file)
-
-        # 버퍼의 처음으로 이동
-        audio_file.seek(0)
-
-        # StreamingResponse로 음성 파일을 반환
-        return StreamingResponse(
-            audio_file,
-            media_type="audio/mpeg",
-            headers={"Content-Disposition": "inline; filename=tts.mp3"}
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"오디오 생성 중 오류 발생: {str(e)}")
-
+    if not text:
+        raise HTTPException(status_code=400, detail="text 파라미터가 비어있습니다.")
+    audio_file = generate_gTTS_audio(text=text)
+    return StreamingResponse(audio_file, media_type="audio/mpeg")
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
