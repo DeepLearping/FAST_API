@@ -7,9 +7,9 @@ from fastapi import FastAPI, HTTPException, Query
 from langchain_redis import RedisChatMessageHistory
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from fastapi import FastAPI, HTTPException
-from chat_logic import get_or_load_retriever, setup_chat_chain
+from chat_logic import get_or_load_retriever, setup_chat_chain, setup_balanceChat_chain
 from models import BalanceChatRequest, CharacterMatchResponse, ChatRequest, ChatResponse, LoadInfoRequest
-from chat_logic import setup_character_matching_prompt, setup_chat_chain
+from chat_logic import setup_character_matching_prompt, setup_chat_chain, setup_balanceChat_chain
 from models import CharacterMatchRequest, ChatRequest, ChatResponse
 from langchain_core.messages.ai import AIMessage
 from langchain_core.messages import HumanMessage
@@ -22,7 +22,7 @@ import re
 from contextlib import asynccontextmanager
 
 def init():
-    for char_id in [1, 2, 3, 4, 5, 6]:
+    for char_id in [6]:
         get_or_load_retriever(char_id)
 
 @asynccontextmanager
@@ -68,7 +68,7 @@ async def chat(request: ChatRequest):
                 "conversation_id": request.conversation_id
             }
         }
- 
+
         response = chat_chain.invoke({"question": request.question}, config)
         
         # 토큰 단위 스트리밍
@@ -179,7 +179,7 @@ async def balance_chat(request: BalanceChatRequest):
         current_situation = global_situation.get(request.character_id, None)
 
         # 챗 체인 설정
-        chat_chain = setup_chat_chain(request.character_id, request.keyword, current_situation)
+        chat_chain = setup_balanceChat_chain(request.character_id, request.keyword, current_situation)
 
         config = {
             "configurable": {

@@ -123,7 +123,59 @@ def get_or_load_retriever(character_id: int):
         print(f"해당 캐릭터 번호의 데이터를 로드할 수 없습니다: {e}")
         return None
 
-def setup_chat_chain(character_id: int, keyword: Optional[str] = None, situation: Optional[str] = None):
+def setup_chat_chain(character_id: int):
+    # Lazy-load the retriever
+    retriever = get_or_load_retriever(character_id)
+    
+    prompt = get_prompt_by_character_id(character_id)
+    
+    if character_id == 1:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 2:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 3:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 4:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 5:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 6:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    else:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+
+    chain = (
+        {
+            "question": lambda x: x["question"], 
+            "chat_message": lambda x: x["chat_message"], 
+            "relevant_info": lambda x: retriever.invoke(x["question"]) if retriever else None
+        }
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+
+    def get_chat_message(user_id, conversation_id):
+        return SQLChatMessageHistory(
+            table_name="chat_message",
+            session_id=conversation_id,
+            connection=os.getenv("ENV_CONNECTION")
+        )
+    
+    config_field = [
+        ConfigurableFieldSpec(id="user_id", annotation=int, is_shared=True),
+        ConfigurableFieldSpec(id="conversation_id", annotation=int, is_shared=True)
+    ]
+    
+    return RunnableWithMessageHistory(
+        chain,
+        get_chat_message,
+        input_messages_key="question",
+        history_messages_key="chat_message",
+        history_factory_config=config_field
+    )
+
+def setup_balanceChat_chain(character_id: int, keyword: Optional[str] = None, situation: Optional[str] = None):
     # Lazy-load the retriever
     retriever = get_or_load_retriever(character_id)
 
@@ -142,7 +194,22 @@ def setup_chat_chain(character_id: int, keyword: Optional[str] = None, situation
     
 
     # LLM setup
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3 if character_id in range(1, 7) else 0)
+    # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3 if character_id in range(1, 7) else 0)
+    if character_id == 1:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 2:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 3:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 4:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 5:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 6:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    else:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+
 
     if isinstance(prompt, str):
         prompt = ChatPromptTemplate.from_messages([
