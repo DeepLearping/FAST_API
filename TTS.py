@@ -45,6 +45,7 @@
 import io
 import re
 import requests
+
 from fastapi.responses import StreamingResponse
 
 # 일레븐랩스 API 키
@@ -92,12 +93,16 @@ class TTS:
         # 요청 데이터
         data = {
             "text": clean_text,
+            "model_id": "eleven_multilingual_v2",
             "voice_id": self.voice_id,  # 사용할 음성 ID
             "language": self.language,  # 언어 설정
             "prosody": {
-                "rate": "slow",   # 속도 (slow, medium, fast)
-                "pitch": "medium",  # 억양 (low, medium, high)
-                "volume": "medium"  # 볼륨 (low, medium, high)
+                "rate": "medium",   # 속도 (slow, medium, fast)
+                "pitch": "high",  # 억양 (low, medium, high)
+                "volume": "high",  # 볼륨 (low, medium, high)
+                "stability": "0.5",
+                "similarity_boost" : "0.9",
+                "style":1
                 }  
         }
         
