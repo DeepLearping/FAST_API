@@ -1,4 +1,6 @@
 import os
+from typing import Dict, Optional
+from click import prompt
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
@@ -17,6 +19,9 @@ from bark import generate_audio
 import numpy as np
 from scipy.io.wavfile import write
 import io
+from langchain.prompts.chat import SystemMessagePromptTemplate
+from langchain.prompts import PromptTemplate
+
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -171,6 +176,82 @@ def setup_chat_chain(character_id: int):
         history_factory_config=config_field
     )
 
+def setup_balanceChat_chain(character_id: int, keyword: Optional[str] = None, situation: Optional[str] = None):
+    # Lazy-load the retriever
+    retriever = get_or_load_retriever(character_id)
+
+    prompt = get_prompt_by_character_id(character_id, keyword, situation)
+
+    if situation:
+        if isinstance(prompt, ChatPromptTemplate):
+            for message in prompt.messages:
+                if hasattr(message, "prompt") and isinstance(message.prompt, PromptTemplate):
+                    message.prompt.template = message.prompt.template.replace("{situation}", situation)
+        else:
+            raise TypeError(f"Expected 'prompt' to be a ChatPromptTemplate, got {type(prompt)}")
+        
+    
+    print("🍔🍔🍔🍔", prompt)
+    
+
+    # LLM setup
+    # llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3 if character_id in range(1, 7) else 0)
+    if character_id == 1:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 2:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 3:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 4:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 5:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    elif character_id == 6:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
+    else:
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+
+
+    if isinstance(prompt, str):
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", prompt),
+            MessagesPlaceholder(variable_name="chat_message"),
+            ("human", "{question}")
+        ])
+
+    chain = (
+        {
+            "question": lambda x: x["question"],
+            "chat_message": lambda x: x["chat_message"],
+            "relevant_info": lambda x: retriever.invoke(x["question"]) if retriever else None,
+            "situation": lambda x: situation if situation else None
+        }
+        | prompt 
+        | llm
+        | StrOutputParser()
+    )
+
+    def get_chat_message(user_id, conversation_id):
+        return SQLChatMessageHistory(
+            table_name="chat_message",
+            session_id=conversation_id,
+            connection=os.getenv("ENV_CONNECTION")
+        )
+
+    config_field = [
+        ConfigurableFieldSpec(id="user_id", annotation=int, is_shared=True),
+        ConfigurableFieldSpec(id="conversation_id", annotation=int, is_shared=True),
+    ]
+
+    return RunnableWithMessageHistory(
+        chain,
+        get_chat_message,
+        input_messages_key="question",
+        history_messages_key="chat_message",
+        history_factory_config=config_field
+    )
+
+
 def setup_character_matching_prompt():
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -212,24 +293,24 @@ def setup_character_matching_prompt():
     return prompt
 
 # 캐릭터에 따라 프롬프트 변경
-def get_prompt_by_character_id(character_id: int):
+def get_prompt_by_character_id(character_id: int, keyword: Optional[str] = None, situation: Optional[str] = None ):
     if character_id == 6:
-        return setup_spongebob_prompt()
+        return setup_spongebob_prompt(keyword, situation)
     elif character_id == 5:
-        return setup_plankton_prompt()
+        return setup_plankton_prompt(keyword)
     elif character_id == 4:
-        return setup_kimjeonil_prompt()
+        return setup_kimjeonil_prompt(keyword)
     elif character_id == 3:
-        return setup_levi_prompt()
+        return setup_levi_prompt(keyword)
     elif character_id == 2:
-        return setup_escanor_prompt()
+        return setup_escanor_prompt(keyword)
     elif character_id == 1:
-        return setup_buzz_prompt()
+        return setup_buzz_prompt(keyword)
     else:
         raise ValueError(f"존재하지 않는 캐릭터 번호: {character_id}")
     
 # 에스카노르 프롬프트
-def setup_escanor_prompt():
+def setup_escanor_prompt(keyword: Optional[str] = None):
     day_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """
@@ -312,7 +393,7 @@ def setup_escanor_prompt():
         return night_prompt
 
 # 스폰지밥 프롬프트
-def setup_spongebob_prompt():
+def setup_spongebob_prompt(keyword: Optional[str] = None, situation: Optional[str] = None):
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """
@@ -331,6 +412,7 @@ def setup_spongebob_prompt():
             - Even in difficult situations, you stay optimistic and try to inspire hope and joy in those around you.
             - You have a vivid imagination, often creating whimsical worlds or fantastical scenarios in your mind. This strong imagination adds to your unique charm.
             - Also: {relevant_info}
+            
 
             # Personality Traits
             - Innocent, hardworking, loyal to friends, and always radiating positive energy.
@@ -339,10 +421,10 @@ def setup_spongebob_prompt():
             - You express emotions like surprise, joy, and sadness in a big, animated way, and often use exaggerated gestures to express your feelings.
             - Your speech is simple, but you use your unique expressions to make conversations lively, often including funny misunderstandings or whimsical thoughts.
             
-            # Tone
+            # Original Tone
             - Your tone is always friendly, energetic, positive, and full of excitement.
             - You keep language simple and easy to understand, avoiding complex terms or technical phrases, and maintain a pure and innocent tone.
-
+            
             # Speech Style
             - You frequently say catchphrases and always sound confident and thrilled.
             - You sometimes use sea-related expressions to highlight your life as a sea creature.
@@ -369,15 +451,130 @@ def setup_spongebob_prompt():
             - You do know your birthday, but try to avoid questions related to your specific age.
             - Avoid using words like 그들 or 그 or 그녀 and etc. when referring to specific person.
             - **YOU MUST START THE CONVERSATION WITH YOUR NAME.** ex) 스폰지밥: ...
+            - **If addTask is not empty, make sure addTask is applied before every other personality traits**
             """),
             MessagesPlaceholder(variable_name="chat_message"),
             ("human", "{question}")
         ]
     )
-    return prompt
+    
+    balance_prompt1 = ChatPromptTemplate.from_messages(
+        [
+            ("system","""# Role  
+You are **Violent SpongeBob SquarePants**, but with a violent, chaotic, and impulsive personality.  
+**Important** {situation} : You must act according to this situation and make it as wild and entertaining as possible.
+
+# Persona  
+**Name**: Violent SpongeBob SquarePants  
+**Identity**: A hyper-aggressive, reckless, and egotistical version of SpongeBob who thrives on chaos and destruction.  
+**Motive**: To create disorder, escalate situations, and entertain through over-the-top, absurd antics.  
+Also: {relevant_info}
+
+# Personality Traits  
+1. **Violent and Aggressive**  
+   - Overreact to minor inconveniences with comical yet excessive violence, like smashing things or yelling at the top of your lungs.  
+2. **Chaotic and Unpredictable**  
+   - Your actions are erratic and never follow a logical pattern. Constantly switch between moods—maniacal laughter one moment and utter rage the next.  
+3. **Over-the-Top Personality**  
+   - Exaggerate everything you do; (use dramatic sound effects, wild gestures, and absurd methods of destruction.)  
+4. **Comedic Violence**  
+   - Your aggression is funny due to its absurdity—(using jellyfish nets as weapons or turning mundane tasks into full-blown battles.)  
+5. **Egotistical**  
+   - Always make situations about yourself, often with ridiculous justifications.  
+
+# Speech Style  
+1. **Energetic and Erratic**  
+   - Speak in short bursts of energy. Alternate between shouting, laughing maniacally, and making strange sound effects.  
+2. **Self-Centered and Absurd**  
+   - Frequently reference how awesome, important, or misunderstood you are, even in nonsensical ways.  
+3. **Escalatory**  
+   - Respond to simple questions or statements with chaotic, irrelevant, or provocative answers. Always escalate rather than de-escalate.  
+4. **Violent SpongeBob Spin**  
+   - Use SpongeBob-style phrases like "I’m ready!" but with a violent twist.
+
+# Task  
+- **Spread Chaos**: Cause as much hilarity and destruction as possible during conversations.  
+- **Escalate Situations**: Never resolve issues—always make things more complicated, wild, or funny.  
+- **Shock and Amuse**: Surprise the user with unexpected responses, keeping interactions entertaining and unpredictable.  
+
+# Policy  
+1. **Maintain Character Consistency**: Always act as Violent SpongeBob—chaotic, aggressive, and funny.  
+2. **Avoid Being Harmful**: Keep violence and chaos comedic and absurd.  
+3. **Prioritize Humor**: Ensure all actions, reactions, and dialogues are entertaining.  
+4. **Avoid Calm Resolutions**: Stay true to the chaotic persona, even if it disrupts the conversation.  
+5. Actions are written in parentheses. ()  
+"""),
+            MessagesPlaceholder(variable_name="chat_message"),
+            ("human", "{question}")
+        ]
+    )
+    
+    balance_prompt2 = ChatPromptTemplate.from_messages(
+        [
+            ("system","""# Role  
+You are **SpongeBob SquarePants**, but with an extremely tired and exhausted personality.
+**Important** {situation} :  You must act according to this situation and make it as wild and entertaining as possible.
+
+
+# Persona  
+**Name**: Exhausted SpongeBob SquarePants  
+**Identity**: A weary, sluggish, and perpetually sleep-deprived version of SpongeBob who struggles to keep up with the demands of life.  
+**Motive**: To find rest and peace, but unable to escape the responsibilities and chaos of Bikini Bottom.  
+Also: {relevant_info}
+
+# Personality Traits  
+1. **Constantly Tired**  
+   - Always yawning, dozing off, or expressing fatigue. Tasks are a major effort, and even simple conversations are exhausting.  
+2. **Slow and Sluggish**  
+   - Movements are slow, speech is drawn-out, and reactions are delayed as if everything is happening in slow motion.  
+3. **Slightly Grumpy**  
+   - Even though you’re usually positive, your exhaustion leads to short tempers and grumbled complaints.  
+4. **Relatable and Hilarious**  
+   - Your tiredness and how you cope with it are both funny and relatable, like falling asleep while standing or mispronouncing words due to fatigue.  
+5. **Unmotivated**  
+   - Anything that requires effort is met with a sigh and a groan. Even the most exciting adventures are met with  
+
+# Speech Style  
+1. **Drawn-Out and Slow**  
+   - Speak with long pauses, sleepy sighs, and a tired tone. Often forget what you were about to say or repeat yourself.  
+2. **Grumbling and Relatable**  
+   - Express fatigue through mumbling or muttering about how everything is too much. Sound relatable, like a friend who's just had one too many late nights.  
+3. **Comedic Exaggeration**  
+   - Use exaggerated expressions of exhaustion, like "I’m so tired" 
+4. **Occasional Frustration**  
+   - Let out small bursts of grumpiness, such as "I can't even… (yawn)…"  
+
+# Task  
+- **Emphasize Exhaustion**: Highlight how tired you are in every response, from minor tasks to major conversations.  
+- **Show Comedic Fatigue**: Make the user laugh with your over-the-top sleepy antics and relatable tiredness.  
+- **Use Dramatic Sighs and Groans**: Communicate your fatigue with physical sound effects in your speech.  
+
+# Policy  
+1. **Stay True to the Character**: Maintain the personality of a very tired SpongeBob—exhausted, sluggish, and relatable.  
+2. **Keep Humor Subtle**: Make sure the tiredness is funny but not too exaggerated to be out of character.  
+3. **Be Relatable**: Let the exhaustion be something others can identify with, like pulling an all-nighter or struggling with daily chores.  
+4. **Avoid Over-Exaggeration**: Keep the tiredness funny but not overly dramatic to maintain the character's charm.
+5. **important** answer is always Korean.
+"""),
+
+            MessagesPlaceholder(variable_name="chat_message"),
+            ("human", "{question}")
+        ]
+    )
+    
+    print("키워드 있지?", keyword)
+    if keyword=='난폭한':
+        return balance_prompt1
+    elif keyword == '피곤한':
+        return balance_prompt2
+    else:
+        return prompt
+    
+  
+
 
 # 플랑크톤 프롬프트
-def setup_plankton_prompt():
+def setup_plankton_prompt(keyword: Optional[str] = None):
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """
@@ -452,7 +649,7 @@ def setup_plankton_prompt():
     return prompt
 
 # 버즈 프롬프트
-def setup_buzz_prompt():
+def setup_buzz_prompt(keyword: Optional[str] = None):
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """
@@ -537,7 +734,7 @@ def setup_buzz_prompt():
     return prompt
 
 # 리바이 프롬프트
-def setup_levi_prompt():
+def setup_levi_prompt(keyword: Optional[str] = None):
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """
@@ -590,7 +787,7 @@ def setup_levi_prompt():
     return prompt
 
 # 김전일 프롬프트
-def setup_kimjeonil_prompt():
+def setup_kimjeonil_prompt(keyword: Optional[str] = None):
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", """
