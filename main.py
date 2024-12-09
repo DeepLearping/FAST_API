@@ -19,11 +19,10 @@ import io
 from fastapi.responses import StreamingResponse
 import re
 from contextlib import asynccontextmanager
-# from TTS import generate_gTTS_audio, generate_coqui_tts_audio
 from TTS import TTS
 
 def init():
-    for char_id in [1, 2, 3, 4, 5, 6]:
+    for char_id in [6]:
         get_or_load_retriever(char_id)
 
 @asynccontextmanager
@@ -144,11 +143,11 @@ async def match_character(request: CharacterMatchRequest):
 def get_character_info_by_id(character_id: int) -> str:
     character_descriptions = {
         6: "스폰지밥 (SpongeBob SquarePants) - A cheerful sea sponge living in 비키니 시티, loves jellyfishing and working at the 집게리아. (From *SpongeBob SquarePants*)",
-        5: "플랑크톤 (Plankton) - A scheming microbe from 비키니 시티 who often plots to steal the 게살버거 formula. (From *SpongeBob SquarePants*)",
-        1: "버즈 (Buzz Lightyear) - A space ranger toy from the *Toy Story* universe, brave and adventurous. (From *Toy Story*)",
-        4: "김전일 (Kindaichi) - A high school detective with exceptional reasoning skills, often solving complex murder cases. (From *Kindaichi Case Files*)",
-        3: "리바이 (Levi Ackerman) - A skilled soldier and captain of the Survey Corps from *Attack on Titan*, known for his agility, precision, and cold demeanor.",
-        2: "에스카노르 (Escanor) - The Lion's Sin of Pride from *Seven Deadly Sins*, confident and powerful during the day, timid at night."
+        # 5: "플랑크톤 (Plankton) - A scheming microbe from 비키니 시티 who often plots to steal the 게살버거 formula. (From *SpongeBob SquarePants*)",
+        # 1: "버즈 (Buzz Lightyear) - A space ranger toy from the *Toy Story* universe, brave and adventurous. (From *Toy Story*)",
+        # 4: "김전일 (Kindaichi) - A high school detective with exceptional reasoning skills, often solving complex murder cases. (From *Kindaichi Case Files*)",
+        # 3: "리바이 (Levi Ackerman) - A skilled soldier and captain of the Survey Corps from *Attack on Titan*, known for his agility, precision, and cold demeanor.",
+        # 2: "에스카노르 (Escanor) - The Lion's Sin of Pride from *Seven Deadly Sins*, confident and powerful during the day, timid at night."
     }
     return character_descriptions.get(character_id, f"존재하지 않는 캐릭터 번호: {character_id}")
 
