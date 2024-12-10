@@ -1,18 +1,12 @@
 from fastapi.middleware.cors import CORSMiddleware
-from langchain_community.chat_message_histories import SQLChatMessageHistory
 from fastapi import FastAPI, HTTPException
 from langchain_openai import ChatOpenAI
-from langchain_community.chat_message_histories import SQLChatMessageHistory
 from fastapi import FastAPI, HTTPException, Query
-from langchain_redis import RedisChatMessageHistory
-from langchain_community.chat_message_histories import SQLChatMessageHistory
 from fastapi import FastAPI, HTTPException
 from chat_logic import get_or_load_retriever, setup_chat_chain, setup_balanceChat_chain
 from models import BalanceChatRequest, CharacterMatchResponse, ChatRequest, ChatResponse, LoadInfoRequest
 from chat_logic import setup_character_matching_prompt, setup_chat_chain, setup_balanceChat_chain
 from models import CharacterMatchRequest, ChatRequest, ChatResponse
-from langchain_core.messages.ai import AIMessage
-from langchain_core.messages import HumanMessage
 import os
 from sqlalchemy import create_engine
 import io
@@ -22,7 +16,7 @@ from contextlib import asynccontextmanager
 from TTS import TTS
 
 def init():
-    for char_id in [6]:
+    for char_id in [1, 2, 3, 4, 5, 6]:
         get_or_load_retriever(char_id)
 
 @asynccontextmanager
@@ -88,13 +82,6 @@ async def chat(request: ChatRequest):
         # 응답(response)에서 키워드 감지 및 이미지 URL 매핑
         detected_keyword = query_routing(response)  # 응답 내용을 분석
         msg_img= get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
-
-        # gTTS를 이용한 TTS 생성
-        # audio_file = generate_gTTS_audio(text=response, lang="ko")
-
-        # Coqui TTS 사용 예시
-        # TTS_SERVER_URL = "http://localhost:5002/api/tts"
-        # audio_file = generate_coqui_tts_audio(response, TTS_SERVER_URL)
 
         return ChatResponse(
             answer=response,
@@ -193,14 +180,6 @@ async def balance_chat(request: BalanceChatRequest):
         detected_keyword = query_routing(response)  # 응답 내용을 분석
         msg_img = get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
 
-        # TTS로 응답 생성
-        tts = gTTS(text=response, lang="ko")
-        audio_file = io.BytesIO()
-        tts.write_to_fp(audio_file)
-
-        # 버퍼의 처음으로 이동
-        audio_file.seek(0)
-
         return ChatResponse(
             answer=response,
             character_id=request.character_id,
@@ -210,42 +189,7 @@ async def balance_chat(request: BalanceChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# 이모티콘 제거 함수
-def remove_emojis(text):
-    emoji_pattern = re.compile(
-        "["
-        "\U0001F600-\U0001F64F"  # 감정 이모티콘
-        "\U0001F300-\U0001F5FF"  # 기호 및 아이콘
-        "\U0001F680-\U0001F6FF"  # 교통 및 기계
-        "\U0001F1E0-\U0001F1FF"  # 국기
-        "\U00002500-\U00002BEF"  # 기타 기호
-        "\U00002702-\U000027B0"
-        "\U000024C2-\U0001F251"
-        "]+",
-        flags=re.UNICODE
-    )
-    return emoji_pattern.sub(r'', text)
-    return msg_img_map.get(keyword, msg_img_map["default"])
     
-# # TTS 인스턴스 생성
-# tts = TTS(use_local_gtts=False, tts_server_url="http://localhost:5002/api/tts")
-
-# @app.get("/chat/stream_audio")
-# async def stream_audio(text: str = Query(..., description="음성을 생성할 텍스트")):
-#     try:
-#         return tts.generate_audio(text)
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))    
-# @app.get("/chat/stream_audio")
-# async def stream_audio(text: str = Query(..., description="음성을 생성할 텍스트")):
-#     if not text:
-#         raise HTTPException(status_code=400, detail="text 파라미터가 비어있습니다.")
-#     audio_file = generate_gTTS_audio(text=text)
-#     return StreamingResponse(audio_file, media_type="audio/mpeg")
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
-# TTS 인스턴스 생성 (언어: 한국어)
 tts = TTS(language="ko")
 
 
