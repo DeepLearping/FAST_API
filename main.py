@@ -1,28 +1,20 @@
 from fastapi.middleware.cors import CORSMiddleware
-from langchain_community.chat_message_histories import SQLChatMessageHistory
 from fastapi import FastAPI, HTTPException
 from langchain_openai import ChatOpenAI
-from langchain_community.chat_message_histories import SQLChatMessageHistory
 from fastapi import FastAPI, HTTPException, Query
-from langchain_redis import RedisChatMessageHistory
-from langchain_community.chat_message_histories import SQLChatMessageHistory
 from fastapi import FastAPI, HTTPException
 from chat_logic import get_or_load_retriever, setup_chat_chain, setup_balanceChat_chain
 from models import BalanceChatRequest, CharacterMatchResponse, ChatRequest, ChatResponse, LoadInfoRequest
 from chat_logic import setup_character_matching_prompt, setup_chat_chain, setup_balanceChat_chain
 from models import CharacterMatchRequest, ChatRequest, ChatResponse
-from langchain_core.messages.ai import AIMessage
-from langchain_core.messages import HumanMessage
 import os
 from sqlalchemy import create_engine
-from gtts import gTTS  # gTTS 설치 필요
-import io
-from fastapi.responses import StreamingResponse
 import re
 from contextlib import asynccontextmanager
+from TTS import TTS
 
 def init():
-    for char_id in [6]:
+    for char_id in [1, 2, 3, 4, 5, 6]:
         get_or_load_retriever(char_id)
 
 @asynccontextmanager
@@ -88,19 +80,11 @@ async def chat(request: ChatRequest):
         detected_keyword = query_routing(response)  # 응답 내용을 분석
         msg_img= get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
 
-        # TTS로 응답 생성
-        tts = gTTS(text=response, lang="ko")
-        # 메모리 버퍼에 TTS 데이터를 저장
-        audio_file = io.BytesIO()
-        tts.write_to_fp(audio_file)
-
-        # 버퍼의 처음으로 이동
-        audio_file.seek(0)
-
         return ChatResponse(
             answer=response,
             character_id=request.character_id,
-            msg_img=msg_img
+            msg_img=msg_img,
+            tts_url="/chat/stream_audio"
         )
     
     except Exception as e:
@@ -193,14 +177,6 @@ async def balance_chat(request: BalanceChatRequest):
         detected_keyword = query_routing(response)  # 응답 내용을 분석
         msg_img = get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
 
-        # TTS로 응답 생성
-        tts = gTTS(text=response, lang="ko")
-        audio_file = io.BytesIO()
-        tts.write_to_fp(audio_file)
-
-        # 버퍼의 처음으로 이동
-        audio_file.seek(0)
-
         return ChatResponse(
             answer=response,
             character_id=request.character_id,
@@ -210,50 +186,18 @@ async def balance_chat(request: BalanceChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# 이모티콘 제거 함수
-def remove_emojis(text):
-    emoji_pattern = re.compile(
-        "["
-        "\U0001F600-\U0001F64F"  # 감정 이모티콘
-        "\U0001F300-\U0001F5FF"  # 기호 및 아이콘
-        "\U0001F680-\U0001F6FF"  # 교통 및 기계
-        "\U0001F1E0-\U0001F1FF"  # 국기
-        "\U00002500-\U00002BEF"  # 기타 기호
-        "\U00002702-\U000027B0"
-        "\U000024C2-\U0001F251"
-        "]+",
-        flags=re.UNICODE
-    )
-    return emoji_pattern.sub(r'', text)
+    
+tts = TTS(language="ko")
+
 
 @app.get("/chat/stream_audio")
 async def stream_audio(text: str = Query(..., description="음성을 생성할 텍스트")):
     """
-    요청으로 받은 텍스트를 기반으로 음성을 생성하여 반환.
+    텍스트를 받아 음성을 반환하는 API 엔드포인트
+    :param text: 음성을 생성할 텍스트
+    :return: StreamingResponse
     """
     try:
-        # # 이모티콘 제거
-        # filtered_text = remove_emojis(text)
-
-        # TTS 응답을 요청으로 받은 텍스트 기반으로 생성
-        tts = gTTS(text=text, lang="ko")
-
-        # 메모리 버퍼에 저장
-        audio_file = io.BytesIO()
-        tts.write_to_fp(audio_file)
-
-        # 버퍼의 처음으로 이동
-        audio_file.seek(0)
-
-        # StreamingResponse로 음성 파일을 반환
-        return StreamingResponse(
-            audio_file,
-            media_type="audio/mpeg",
-            headers={"Content-Disposition": "inline; filename=tts.mp3"}
-        )
+        return tts.generate_audio(text)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"오디오 생성 중 오류 발생: {str(e)}")
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+        raise HTTPException(status_code=500, detail=str(e))
