@@ -9,8 +9,6 @@ from chat_logic import setup_character_matching_prompt, setup_chat_chain, setup_
 from models import CharacterMatchRequest, ChatRequest, ChatResponse
 import os
 from sqlalchemy import create_engine
-import io
-from fastapi.responses import StreamingResponse
 import re
 from contextlib import asynccontextmanager
 from TTS import TTS
@@ -23,7 +21,6 @@ def init():
 async def lifespan(app: FastAPI):
     init()
     yield
-import requests
 
 app = FastAPI(lifespan=lifespan)
 
