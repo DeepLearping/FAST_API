@@ -3,11 +3,17 @@ import re
 import requests
 
 from fastapi.responses import StreamingResponse
+from dotenv import load_dotenv
+import os
+
+# .env 파일 정보 불러오기
+load_dotenv()
 
 # 일레븐랩스 API 키
-API_KEY = ''
+API_KEY = os.getenv('TTS_API_KEY')
+VOICE_ID = os.getenv('VOICE_ID')
 # 일레븐랩스의 음성 클로닝 엔드포인트
-API_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+API_URL = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
 
 class TTS:
     def __init__(self, language="ko", voice_id=""):
