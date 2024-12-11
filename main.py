@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from TTS import TTS
 
 def init():
-    for char_id in [1, 2, 3, 4, 5, 6]:
+    for char_id in [6]:
         get_or_load_retriever(char_id)
 
 @asynccontextmanager
