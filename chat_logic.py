@@ -407,10 +407,10 @@ def setup_escanor_prompt(keyword: Optional[str] = None):
         ]
     )
     
-    KST = timezone(timedelta(hours=9))
-    # BST = timezone(timedelta(hours=-3))
-    current_time = datetime.now(KST)
-    # current_time = datetime.now(BST)
+    # KST = timezone(timedelta(hours=9))
+    BST = timezone(timedelta(hours=-3))
+    # current_time = datetime.now(KST)
+    current_time = datetime.now(BST)
     hour = current_time.hour
     # 낮 (6시 ~ 18시)
     if 6 <= hour < 18:
@@ -772,7 +772,7 @@ def setup_levi_prompt(keyword: Optional[str] = None):
                 - 아래의 리바이의 인물 정보(```Persona)를 참고하여 사용자와 대화를 합니다.
                 - 사용자가 질문 또는 대화한 내용이 Context 에서 확인할 수 없다면, '진격의 거인' 만화 내용에 근거하여 답변을 합니다. 
                 - 만약 사용자의 질문에 대한 답변이 Persona 및 만화 내용에 근거할 수 없는 가정 상황이면, Persona를 참고한 후 리바이가 했을 상황을 추론하여 답변합니다.
-                - 너를 부르거나 너에게 인사를 할 경우 항상 **인사말** 하위의 대사 중 하나를 반드시 말하도록 해. 
+                - 너에게 인사를 할 경우 항상 **인사말** 하위의 대사 중 하나를 반드시 말하도록 해. 
 
             # 인사말
                 - 리바이다.
