@@ -138,13 +138,11 @@ global_situation = {}
 @app.post("/balanceChat", response_model=ChatResponse)
 async def balance_chat(request: BalanceChatRequest):
     try:
-        # 상황을 전역 상태에서 가져오기 또는 업데이트하기
-        if request.situation is not None:
+        current_situation = global_situation.get(request.character_id)
+        if request.situation:
             global_situation[request.character_id] = request.situation
+            current_situation = request.situation  # 상황 업데이트
         
-        # 현재 상태에서 상황 가져오기
-        current_situation = global_situation.get(request.character_id, None)
-
         # 챗 체인 설정
         chat_chain = setup_balanceChat_chain(request.character_id, request.keyword, current_situation)
 
@@ -157,8 +155,11 @@ async def balance_chat(request: BalanceChatRequest):
 
         response = chat_chain.invoke({"question": request.question}, config)
 
-        detected_keyword = query_routing(response)  # 응답 내용을 분석
-        msg_img = get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
+        msg_img = 0
+        # if random.random() < 0.2:   # 20% 확률로 캐릭터 메세지 감정 분석 (happy / sad / neither)
+        #     msg_img = analyze_emotion(response)
+        # detected_keyword = query_routing(response)  # 응답 내용을 분석
+        # msg_img = get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
 
         return ChatResponse(
             answer=response,
