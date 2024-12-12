@@ -156,9 +156,7 @@ async def balance_chat(request: BalanceChatRequest):
         }
 
         response = chat_chain.invoke({"question": request.question}, config)
-
-        detected_keyword = query_routing(response)  # 응답 내용을 분석
-        msg_img = get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
+        msg_img = 0
 
         return ChatResponse(
             answer=response,
