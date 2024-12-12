@@ -381,10 +381,10 @@ def setup_escanor_prompt(keyword: Optional[str] = None):
         ]
     )
     
-    KST = timezone(timedelta(hours=9))
-    # BST = timezone(timedelta(hours=-3))
-    current_time = datetime.now(KST)
-    # current_time = datetime.now(BST)
+    # KST = timezone(timedelta(hours=9))
+    BST = timezone(timedelta(hours=-3))
+    # current_time = datetime.now(KST)
+    current_time = datetime.now(BST)
     hour = current_time.hour
     # 낮 (6시 ~ 18시)
     if 6 <= hour < 18:
