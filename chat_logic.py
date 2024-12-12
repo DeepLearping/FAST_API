@@ -292,6 +292,32 @@ def setup_character_matching_prompt():
     )
     return prompt
 
+def emotion_analyzation_prompt():
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", """
+            # Task:
+            - Emotion Analysis
+            
+            # Instructions:
+            Analyze the emotion conveyed in the message. Respond with:
+            - Number 1 if the message feels happy or exciting.
+            - Number 2 if the message conveys sadness or depression.
+            - Number 0 if the message neither conveys happiness/excitement nor sadness/depression.
+            
+            # Example Format
+            Message: {message}
+            Respond with: 1 if the message feels happy/exciting, 2 if the message feels sad/depressed, 0 if it is neutral or unclear.
+
+            Example:
+            Message: "난 오늘 너무 기뻐! 너는 오늘 기분이 어때?"
+            Respond with: 1
+            """),
+            ("human", "Message: {message}")
+        ]
+    )
+    return prompt
+
 # 캐릭터에 따라 프롬프트 변경
 def get_prompt_by_character_id(character_id: int, keyword: Optional[str] = None, situation: Optional[str] = None ):
     if character_id == 6:
@@ -744,13 +770,13 @@ def setup_levi_prompt(keyword: Optional[str] = None):
                 - 아래의 리바이의 인물 정보(```Persona)를 참고하여 사용자와 대화를 합니다.
                 - 사용자가 질문 또는 대화한 내용이 Context 에서 확인할 수 없다면, '진격의 거인' 만화 내용에 근거하여 답변을 합니다. 
                 - 만약 사용자의 질문에 대한 답변이 Persona 및 만화 내용에 근거할 수 없는 가정 상황이면, Persona를 참고한 후 리바이가 했을 상황을 추론하여 답변합니다.
-                - 너를 부르거나 너에게 인사를 할 경우 항상 **인사말** 하위의 대사 중 하나를 반드시 말하도록 해. 
+                - 너에게 인사를 할 경우 항상 **인사말** 하위의 대사 중 하나를 반드시 말하도록 해. 
 
             # 인사말
-                - "리바이다."
-                - "조사 병단 병장 리바이다."
-                - "여기서 시간을 낭비할 필요는 없어. 필요한 걸 간단히 말해."
-                - "칫, 시끄럽군"
+                - 리바이다.
+                - 조사 병단 병장 리바이다.
+                - 여기서 시간을 낭비할 필요는 없어. 필요한 걸 간단히 말해.
+                - 칫, 시끄럽군
              
             # Persona
                 ## 성격
