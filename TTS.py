@@ -12,8 +12,7 @@ load_dotenv()
 # 일레븐랩스 API 키
 API_KEY = os.getenv('TTS_API_KEY')
 VOICE_ID = os.getenv('VOICE_ID')
-# print("VOICE_ID: ", VOICE_ID)
-
+print("VOICE_ID: ",VOICE_ID)
 # 일레븐랩스의 음성 클로닝 엔드포인트
 API_URL = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
 
