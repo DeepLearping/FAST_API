@@ -1,20 +1,17 @@
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, HTTPException
-from langchain_openai import ChatOpenAI
 from fastapi import FastAPI, HTTPException, Query
-from fastapi import FastAPI, HTTPException
-from chat_logic import get_or_load_retriever, setup_chat_chain, setup_balanceChat_chain
-from models import BalanceChatRequest, CharacterMatchResponse, ChatRequest, ChatResponse, LoadInfoRequest
-from chat_logic import setup_character_matching_prompt, setup_chat_chain, setup_balanceChat_chain
-from models import CharacterMatchRequest, ChatRequest, ChatResponse
-import os
-from sqlalchemy import create_engine
-import re
+from langchain_openai import ChatOpenAI
+from chat_logic import get_or_load_retriever, setup_chat_chain, setup_balanceChat_chain, emotion_analyzation_prompt, setup_character_matching_prompt, setup_chat_chain, setup_balanceChat_chain
+from models import BalanceChatRequest, CharacterMatchResponse, ChatRequest, ChatResponse, LoadInfoRequest, CharacterMatchRequest, ChatRequest, ChatResponse
 from contextlib import asynccontextmanager
 from TTS import TTS
+from sqlalchemy import create_engine
+import os
+import re
+import random
 
 def init():
-    for char_id in [1, 2, 3, 4, 5, 6]:
+    for char_id in [1,2,3,4,5,6]:
         get_or_load_retriever(char_id)
 
 @asynccontextmanager
@@ -37,22 +34,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 방 입장 시 미리 필요한 데이터 로드 => FAST API 실행 시 모든 캐릭터 데이터 로드하는 걸로 변경
-# @app.post("/load_info")
-# async def load_info(request: LoadInfoRequest):
-#     char_id_list = request.char_id_list
-    
-#     for char_id in char_id_list:
-#         get_or_load_retriever(char_id)
-
 # 캐릭터와 채팅
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     try:
-        # import time
-        # start_time = time.time()
         chat_chain = setup_chat_chain(request.character_id)
-        # print("chat chain time", time.time() - start_time)
         
         config = {
             "configurable": {
@@ -71,14 +57,11 @@ async def chat(request: ChatRequest):
         #     response = response + token
         #     print(token, end="", flush=True)
 
-        # chat_message2에 새로운 table에 캐릭터 name과 id 포함된 message 저장
-        # history = SQLChatMessageHistory(table_name="chat_message2",session_id=request.conversation_id,connection=os.getenv("ENV_CONNECTION"))
-        # history.add_user_message(HumanMessage(content=request.question,id=request.user_id))
-        # history.add_ai_message(AIMessage(content=response,id=request.character_id))
-
-        # 응답(response)에서 키워드 감지 및 이미지 URL 매핑
-        detected_keyword = query_routing(response)  # 응답 내용을 분석
-        msg_img= get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
+        # 메세지 감정 분석
+        msg_img = 0
+        if random.random() < 0.2:   # 20% 확률로 캐릭터 메세지 감정 분석 (happy / sad / neither)
+            msg_img = analyze_emotion(response)
+            # print("메세지 감정분석 결과: ", msg_img)
 
         return ChatResponse(
             answer=response,
@@ -87,6 +70,21 @@ async def chat(request: ChatRequest):
             tts_url="/chat/stream_audio"
         )
     
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def analyze_emotion(message: str):
+    try:
+        prompt = emotion_analyzation_prompt()
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.1)
+        result = llm.invoke(
+            prompt.format(message=message)
+        )
+
+        numeric_ids = re.findall(r'\b\d+\b', result.content)    # 숫자(정수)만 추출
+        emotion_code = [int(emotion_id) for emotion_id in numeric_ids]
+        
+        return emotion_code[0]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -135,21 +133,6 @@ def get_character_info_by_id(character_id: int) -> str:
     }
     return character_descriptions.get(character_id, f"존재하지 않는 캐릭터 번호: {character_id}")
 
-def query_routing(response: str) -> str:    # 응답 내용에서 키워드를 감지하는 함수
-    keywords = ["기뻐", "슬퍼"]  # 감지하려는 키워드 목록
-    for keyword in keywords:
-        if keyword in response.lower():
-            return keyword
-    return "default"
-    
-def get_image_url(keyword: str) -> str: # 키워드에 해당하는 이미지 URL 반환 함수.
-    msg_img_map = {
-        "기뻐": 1,
-        "슬퍼": 2,
-        "default": None
-    }
-    return msg_img_map.get(keyword, msg_img_map["default"])    
-
 global_situation = {}
 
 @app.post("/balanceChat", response_model=ChatResponse)
@@ -173,9 +156,7 @@ async def balance_chat(request: BalanceChatRequest):
         }
 
         response = chat_chain.invoke({"question": request.question}, config)
-
-        detected_keyword = query_routing(response)  # 응답 내용을 분석
-        msg_img = get_image_url(detected_keyword)  # 키워드에 해당하는 이미지 URL 가져오기
+        msg_img = 0
 
         return ChatResponse(
             answer=response,
@@ -186,9 +167,7 @@ async def balance_chat(request: BalanceChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    
 tts = TTS(language="ko")
-
 
 @app.get("/chat/stream_audio")
 async def stream_audio(text: str = Query(..., description="음성을 생성할 텍스트")):
